@@ -117,8 +117,10 @@ def _parse_agent_response(ai_content: str) -> PhishingReport:
         if isinstance(data, dict):
             return PhishingReport(**data)
         return data
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug(
+            "Respuesta del agente sin JSON directo (%s); se intenta extraer el objeto.", exc
+        )
 
     json_match = re.search(r"\{.*\}", content, re.DOTALL)
     if json_match:
@@ -127,8 +129,10 @@ def _parse_agent_response(ai_content: str) -> PhishingReport:
             if isinstance(data, dict):
                 return PhishingReport(**data)
             return data
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug(
+                "El JSON embebido en la respuesta del agente no parseó (%s).", exc
+            )
 
     raise ValueError(
         f"No se pudo extraer un JSON válido: {content[:500]}"

@@ -92,8 +92,8 @@ Single project: `src/`, `tests/`, `scripts/` at repository root (paquete importa
 - [x] T026 Ejecutar python scripts/check_trazabilidad_ac.py --spec specs/002-normalizacion-correo/spec.md â†’ `6 AC cubiertos`
 - [x] T027 [P] Actualizar README.md (secciÃ³n de arquitectura: paquete normalizaciÃ³n, comando de pruebas) y AGENTS.md (paquete `normalizacion/`, `hypothesis` en requirements, cobertura ahora incluye `src/level2_agent/normalizacion/` y `models.py`)
 - [x] T028 Ejecutar validaciones V1â€“V5 y V7 del quickstart.md; V6 (poller con Gmail real) queda `[VERIFICAR]` documentado
-- [ ] T029 Redactar el informe final (Art. IV.3) en la respuesta de cierre: comando + resultado de pruebas, % cobertura (lÃ­neas y ramas), lista ACâ†’prueba, desviaciones (V6 pendiente, coexistencia temporal legacy D4)
-- [ ] T030 Commits Conventional Commits en la rama `feature/normalizacion-correo` mencionando AC-NORM-NN, en grupos lÃ³gicos: (1) test rojo, (2) modelos+constantes, (3) normalizaciÃ³n implementada, (4) integraciÃ³n poller+agente, (5) compuertas/docs
+- [x] T029 Redactar el informe final (Art. IV.3) en la respuesta de cierre: comando + resultado de pruebas, % cobertura (lÃ­neas y ramas), lista ACâ†’prueba, desviaciones (V6 pendiente, coexistencia temporal legacy D4)
+- [x] T030 Commits Conventional Commits en la rama `feature/normalizacion-correo` mencionando AC-NORM-NN, en grupos lÃ³gicos: (1) test rojo, (2) modelos+constantes, (3) normalizaciÃ³n implementada, (4) integraciÃ³n poller+agente, (5) compuertas/docs
 
 ---
 
@@ -166,6 +166,7 @@ Task: "Implementar src/level2_agent/normalizacion/extraccion.py"
 - Art. IV.1: verify.py exit 0 (T025) + informe (T029)
 - Art. V.1/V.4/V.5: revisiÃ³n manual ante banderas; vista enmascarada al LLM (T023); adjuntos en memoria (T019)
 - Art. VI.3: `[VERIFICAR]` â€” contrato payload API (spec 12) y poller con Gmail real (quickstart V6)
+
 
 
 

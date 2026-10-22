@@ -109,3 +109,20 @@ def test_api_determinismo_raw() -> None:
     uno: Any = normalizar_desde_api({"raw": raw_b64})
     dos: Any = normalizar_desde_api({"raw": raw_b64})
     assert uno.message_id == dos.message_id
+
+
+def test_api_payload_headers_dict() -> None:
+    """Un payload con `headers: {k: v}` los convierte en cabeceras ordenadas (contrato)."""
+    resultado = normalizar_desde_api(
+        {"subject": "s", "headers": {"X-Priority": "1", "X-Mailer": "cliente"}}
+    )
+    nombres = [c.nombre for c in resultado.cabeceras]
+    assert "X-Priority" in nombres
+    assert "X-Mailer" in nombres
+
+
+def test_destinatario_con_nombre_visible(fabrica_eml: Callable[..., bytes]) -> None:
+    """Un `To` con nombre visible extrae solo la dirección (FR-001)."""
+    eml = fabrica_eml(destinatario="Juan Perez <juan@empresa.com>", texto="hola")
+    resultado = normalizar_desde_eml(eml)
+    assert resultado.recipient == "juan@empresa.com"

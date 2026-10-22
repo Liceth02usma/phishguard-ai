@@ -8,15 +8,11 @@ BASE_TOOLS = """1. **BASE DE DATOS VECTORIAL (RAG - NIST SP 800-53 / OWASP)**: C
 VT_TOOL = """
 2. **REPUTACIÓN DE IP/URL**: Cuentas con la herramienta `check_ip_reputation` que consulta VirusTotal para verificar si una dirección IP o URL ha sido reportada como maliciosa. Úsala cuando encuentres enlaces, dominios o direcciones IP en el correo bajo análisis."""
 
-MEMORY_TOOL = """
-3. **MEMORIA DE CONTEXTO**: Cuentas con un módulo de memoria conversacional activa. Si el operador del SOC o el flujo te solicita un reanálisis, aclaración o seguimiento del correo actual, debes consultar tu memoria para mantener la coherencia y el hilo técnico de la investigación."""
-
 
 def _build_system_prompt() -> str:
     tools = BASE_TOOLS
     if os.getenv("VT_API_KEY"):
         tools += VT_TOOL
-    tools += MEMORY_TOOL
 
     return f"""### ROL ###
 Actúa como un Analista Experto en Ciberseguridad del SOC (Security Operations Center), especializado en el análisis forense de correo electrónico y detección de campañas de phishing avanzado.

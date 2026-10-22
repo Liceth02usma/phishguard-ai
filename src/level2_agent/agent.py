@@ -24,7 +24,6 @@ from .prompts import _build_system_prompt, HUMAN_TEMPLATE
 from .tools import create_retriever
 from .tools.ip_reputation import ip_reputation_tool
 from .tools.jira_integration import create_jira_ticket
-from .memory import get_chat_history
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -202,7 +201,6 @@ def analyze_email(email_data: EmailData) -> PhishingReport:
         logger.info("Score %s entre %s-%s → ruta AI Agent (ReAct)", score, SCORE_UMBRAL_BAJO, SCORE_UMBRAL_ALTO)
 
         agent = _get_react_agent()
-        chat_history = get_chat_history(email_data.message_id)
 
         human_content = HUMAN_TEMPLATE.format(
             subject=email_data.subject,
@@ -224,11 +222,6 @@ def analyze_email(email_data: EmailData) -> PhishingReport:
 
             logger.debug("Agent final_msg type=%s content=%s", type(final_msg).__name__, final_msg.content[:500] if final_msg.content else "(empty)")
             report = _parse_agent_response(final_msg.content)
-
-            chat_history.add_user_message(
-                HumanMessage(content=f"Analizar correo: {email_data.subject}")
-            )
-            chat_history.add_ai_message(final_msg.content)
 
         except Exception as e:
             logger.error("Error en ReAct Agent: %s", e)

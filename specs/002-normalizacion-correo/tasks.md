@@ -173,3 +173,20 @@ Task: "Implementar src/level2_agent/normalizacion/extraccion.py"
 
 
 
+
+## Phase 5: Convergence
+
+- [x] T031 Refactorizar `_ensamblar` (src/level2_agent/normalizacion/__init__.py) en helpers de <=40 lineas sin cambiar comportamiento, reejecutando las pruebas afectadas per Constitution III.2 (contradicts)
+- [x] T032 Refactorizar `evaluar_limites` (src/level2_agent/normalizacion/limites.py) a <=40 lineas (extraer la construccion de bandera y detalles a helpers) sin cambiar el contrato per Constitution III.2 (contradicts)
+- [x] T033 Truncar `headers` y `subject` en la vista que va al LLM (`enmascarar_para_terceros`) con constantes nombradas para que el texto total del correo para el modelo respete el limite; anyadir prueba de borde per Constitution 0.6 / FR-004 (partial)
+- [x] T034 Retirar (o justificar por escrito y refactorizar) `get_message_details` en src/gmail_integration/gmail_reader.py: sin llamadores en el repo y con 55 lineas; decision preexistente heredada de la spec 000 per Constitution III.2 (contradicts)
+- [x] T035 Sustituir los `except Exception: pass` de `agent.py::_parse_agent_response` (lineas 120-121 y 130-131) por manejo explicito con logging o relanzada per Constitution III.9 (contradicts)
+- [x] T036 Anadir prueba AC-NORM-02 con texto oculto por `color` igual al `background` (y caso negativo con colores distintos que si se conserva) per FR-003 (partial)
+- [x] T037 Anadir prueba de `normalizar_desde_api` con payload que incluya `headers: {k: v}` para cubrir `_correo_desde_payload` per contracts/normalizacion-api.md (partial)
+- [x] T038 Anadir pruebas de las ramas defensivas de `html_a_texto`: HTML malformado que dispara el fallback parcial y etiquetas ignoradas anidadas per AC-NORM-06 / FR-003 (partial)
+- [x] T039 Anadir prueba de `_destinatario_limpio` con `To` con nombre visible (`Nombre <addr@dominio>`) per FR-001 (partial)
+
+
+
+
+

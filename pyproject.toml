@@ -43,7 +43,12 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 [tool.mypy]
 strict = true
 files = ["scripts", "tests/unit"]
-exclude = ["src/", "notebooks/", "data/", "workflow/", "tests/test_pipeline.py"]
+# "src/" NO se excluye: las pruebas importan src.level2_agent.* y mypy sigue
+# esos imports (resolviéndolos como src.level2_agent.*). El legado src/ se
+# exime con ignore_errors (override src.*); el código nuevo de la spec 002
+# (models.py y normalizacion/) se type-checkea estricto con los overrides
+# de abajo, que van después y por eso prevalecen.
+exclude = ["notebooks/", "data/", "workflow/", "tests/test_pipeline.py"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"
@@ -56,3 +61,10 @@ disable_error_code = ["no-untyped-def", "attr-defined"]
 [[tool.mypy.overrides]]
 module = "src.*"
 ignore_errors = true
+
+# Spec 002: el código nuevo/modificado en src/ SÍ se type-checkea estricto
+# (Art. III.4/IV.1d). Los overrides posteriores ganan a los anteriores.
+[[tool.mypy.overrides]]
+module = ["src.level2_agent.models", "src.level2_agent.normalizacion", "src.level2_agent.normalizacion.*"]
+ignore_errors = false
+strict = true

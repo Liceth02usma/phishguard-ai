@@ -4,7 +4,7 @@ PhishGuard-AI: phishing detection pipeline (genetic score → ReAct agent → Gm
 
 ## Commands
 
-There is **no `pytest`, no `pyproject.toml`, no lint/typecheck/CI config**. Tests are plain scripts with a custom PASS/FAIL runner that `sys.exit(0|1)`.
+Tests use `pytest` (configured in `pyproject.toml`), and `scripts/verify.py` runs the full gate (lint + mypy + tests + coverage + branch checks). The legacy `tests/test_pipeline.py` is a plain PASS/FAIL runner that `sys.exit(0|1)`.
 
 ```powershell
 # Install
@@ -12,7 +12,13 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 
-# Run the verification suite (only test entry point)
+# Run the full verification suite (lint + types + tests + coverage)
+.venv\Scripts\python.exe scripts/verify.py
+
+# Run only the unit tests
+.venv\Scripts\python.exe -m pytest tests/unit/
+
+# Run the legacy fixture pipeline (plain runner)
 .venv\Scripts\python.exe tests/test_pipeline.py
 
 # Run the Gmail poller (long-running loop, 30s interval)
@@ -33,6 +39,7 @@ Optional: `VT_API_KEY`, `JIRA_*`. Tools degrade gracefully when absent (logged w
 ## Architecture notes not obvious from filenames
 
 - **Package root is `src/`**, imported as `src.level2_agent...`, `src.level3_logic...`, `src.gmail_integration...`. There is no installed package; scripts rely on `sys.path.insert(0, PROJECT_ROOT)` and `sys.path.insert(0, SRC_DIR)` at the top of `tests/test_pipeline.py` and `gmail_poller.py`. Do not rename `src/` or move modules without updating these inserts — there is no `src/__init__.py` and no editable install.
+- **Normalization pipeline** lives in `src/level2_agent/normalizacion/` (spec 002). Public API (imported from the package `__init__`): `normalizar_desde_gmail` / `normalizar_desde_eml` / `normalizar_desde_api` → `EmailData`, plus `enmascarar_para_terceros` / `enmascarar_texto` for PII. The Gmail poller now calls `get_message_raw` + `normalizar_desde_gmail` (the legacy `email_to_emaildata.py` adapter is kept for compatibility but is no longer on the poller path). `EmailData` gained fields (`cabeceras`, `texto_limpio`, `urls`, `adjuntos`, `origen`, `banderas`, `revision_manual`); `htmlBody` is `exclude=True` so it is never persisted. Constants (5 hard limits + flags) are in `normalizacion/limites.py`, PII regexes in `normalizacion/enmascarado.py`.
 - **Pipeline thresholds** live in `src/level2_agent/models.py`: `SCORE_UMBRAL_BAJO=30`, `SCORE_UMBRAL_ALTO=75`, `SCORE_FALLBACK=50.0`. `analyze_email()` branches on these. The test runner duplicates the 30/75 literals in `detect_route()` — keep them in sync.
 - **Genetic weights are hardcoded** in `src/level3_logic/genetic_logic.py` (`PESOS_AG`, 32 genes). `data/genes.xlsx` / `data/Tabla de genes...` are the source spreadsheets, **not loaded at runtime** — editing the xlsx does nothing; edit `PESOS_AG`/`MAPEO_INDICES` in code.
 - **LLM model strings are hardcoded**: `models/gemini-2.5-flash-lite` (chat) in `agent.py`, `models/gemini-embedding-001` (embeddings) in `tools/__init__.py`. Not env-driven.
@@ -46,4 +53,4 @@ Optional: `VT_API_KEY`, `JIRA_*`. Tools degrade gracefully when absent (logged w
 - All user-facing strings, prompts, and report fields are in **Spanish**. Preserve language when editing `prompts.py`, report generators in `agent.py`, or fixture `_test` metadata.
 - `EmailData.headers` is a **JSON string**, not a dict (see `models.py` / `email_to_emaildata.py`). Genetic logic parses it.
 - `notebooks/` are exploratory (gene extraction, AG tuning); `_read_nb.py` is a stdin helper that prints notebook cells. `workflow/` holds the architecture diagram. None of these are part of the runtime pipeline.
-- No formatter/linter is configured — match existing style (4-space indent, Spanish docstrings/logs, `Optional` global singletons for lazy init in `agent.py`).
+- There is no formatter, but **ruff + mypy (`--strict`) are configured** in `pyproject.toml` and enforced by `scripts/verify.py` (which also runs `pytest tests/unit/` with branch coverage and a `--cov-fail-under` gate). `hypothesis` is pinned in `requirements.txt` for property-based tests. Match existing style (4-space indent, Spanish docstrings/logs, `Optional` global singletons for lazy init in `agent.py`).

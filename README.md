@@ -10,8 +10,18 @@ Sistema automatizado de detección de phishing con pipeline de tres niveles: alg
                     │  (src/gmail_integration/)   │
                     │   Cada 30s consulta buzón   │
                     └──────────┬──────────────────┘
-                               │ EmailData
+                               │ bytes crudos (raw)
                                ▼
+              ┌────────────────────────────────┐
+              │   NORMALIZACIÓN (spec 002)     │
+              │ src/level2_agent/normalizacion │
+              │ parseo MIME · HTML→texto       │
+              │ URLs · adjuntos (SHA-256)      │
+              │ límites duros · enmascarado    │
+              │ → EmailData acotado y saneado  │
+              └──────────┬─────────────────────┘
+                         │ EmailData
+                         ▼
               ┌────────────────────────────────┐
               │      NIVEL 3: GENÉTICO         │
               │  src/level3_logic/genetic_logic │
@@ -134,8 +144,15 @@ phishguard-ai/
 ├── src/
 │   ├── level2_agent/           # Pipeline de análisis principal
 │   │   ├── agent.py            # Orquestador ReAct + genético
-│   │   ├── models.py           # EmailData, PhishingReport
+│   │   ├── models.py           # EmailData (ampliado), PhishingReport
 │   │   ├── prompts.py          # System prompts NIST/OWASP
+│   │   ├── normalizacion/      # Pipeline de normalización (spec 002)
+│   │   │   ├── __init__.py     # Orquestadores + API pública
+│   │   │   ├── parseo_mime.py  # Bytes → CorreoBruto
+│   │   │   ├── html_a_texto.py # HTML → texto visible
+│   │   │   ├── extraccion.py   # URLs + adjuntos (SHA-256)
+│   │   │   ├── limites.py      # 5 límites duros + banderas
+│   │   │   └── enmascarado.py  # PII → vista para terceros
 │   │   └── tools/
 │   │       ├── __init__.py     # Retriever RAG vectorial
 │   │       ├── ip_reputation.py # Consulta VirusTotal
@@ -149,6 +166,7 @@ phishguard-ai/
 │       └── gmail_poller.py     # Loop de monitoreo continuo
 ├── tests/
 │   ├── test_pipeline.py        # Pruebas del pipeline
+│   ├── unit/                   # Pruebas unitarias por AC (marcador `ac`)
 │   └── fixtures/               # Datos de prueba (JSON)
 ├── notebooks/                   # Jupyter notebooks
 ├── data/                        # Datos auxiliares
@@ -194,6 +212,7 @@ Para correos en zona gris (score 30-75):
 - **MongoDB Atlas** — Vector store (RAG)
 - **Google API Client** — Integración Gmail
 - **Pydantic** — Modelos de datos con validación
+- **Hypothesis** — Pruebas basadas en propiedades (enmascarado PII, spec 002)
 
 Ver `requirements.txt` para la lista completa.
 

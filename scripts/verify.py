@@ -126,6 +126,7 @@ def _compuerta_nombre_rama() -> ResultadoCompuerta:
 def _compuerta_cobertura() -> ResultadoCompuerta:
     # Excepción aprobada por usuario para spec 000 (cobertura real 79.72%).
     # Objetivo constitucional 80%; ver informe final.
+    # Spec 002: se mide también el código nuevo/modificado en src/ (research D10).
     umbral_efectivo = 79
     ok, _ = _run(
         [
@@ -134,6 +135,8 @@ def _compuerta_cobertura() -> ResultadoCompuerta:
             "pytest",
             "tests/unit/",
             "--cov=scripts",
+            "--cov=src/level2_agent/normalizacion",
+            "--cov=src/level2_agent/models",
             "--cov-branch",
             f"--cov-fail-under={umbral_efectivo}",
             "-q",
@@ -193,12 +196,29 @@ def _pip_audit_disponible() -> bool:
         return False
 
 
+# Rutas de código nuevo/modificado que las compuertas de calidad cubren además de
+# scripts/ y tests/unit/ (spec 002, research D10): ruff sin force-exclude revisa
+# rutas pasadas explícitamente aunque "src" esté en extend-exclude de pyproject.
+RUTAS_CALIDAD_SRC: tuple[str, ...] = (
+    "src/level2_agent/models.py",
+    "src/level2_agent/normalizacion",
+)
+
+
 def _compuerta_lint() -> ResultadoCompuerta:
-    ok, salida = _run([sys.executable, "-m", "ruff", "check", "scripts/", "tests/unit/"])
+    # ruff, sin force-exclude, revisa rutas pasadas explícitamente aunque "src"
+    # esté en extend-exclude de pyproject (research D10).
+    ok, salida = _run(
+        [sys.executable, "-m", "ruff", "check", "scripts/", "tests/unit/", *RUTAS_CALIDAD_SRC]
+    )
     return ResultadoCompuerta("lint", ok, [] if ok else [salida[:300]])
 
 
 def _compuerta_tipos() -> ResultadoCompuerta:
+    # mypy NO recibe rutas src/ explícitas (evita "found twice" por la falta de
+    # src/__init__.py): sigue los imports de tests/unit/ hacia src.level2_agent.*
+    # y los evalúa con los overrides de pyproject (legado exento, código nuevo
+    # estricto). Cobertura de src/ nueva viene por import-following.
     ok, salida = _run(
         [sys.executable, "-m", "mypy", "scripts/", "tests/unit/"], timeout=120
     )

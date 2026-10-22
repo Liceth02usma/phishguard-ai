@@ -26,6 +26,15 @@ LIMITE_ADJUNTOS = 20
 LIMITE_NIVELES_MIME = 10
 """Profundidad máxima de partes MIME anidadas que se parsean."""
 
+LIMITE_ASUNTO_LLM = 500
+"""Cuota del asunto dentro del texto total que ve el modelo (Art. 0.6)."""
+
+LIMITE_HEADERS_LLM = 4_000
+"""Cuota de las cabeceras dentro del texto total que ve el modelo (Art. 0.6)."""
+
+LIMITE_HTML_LLM = LIMITE_CARACTERES_TEXTO - LIMITE_ASUNTO_LLM - LIMITE_HEADERS_LLM
+"""Cuota del HTML hacia el modelo: completa el tope de 20 000 chars (FR-004)."""
+
 BANDERA_LIMITE_EXCEDIDO = "LIMITE_EXCEDIDO"
 """Bandera que se registra al superar cualquier límite (nombre exigido por FR-004)."""
 
@@ -50,6 +59,28 @@ class ResultadoLimites:
     urls: tuple[str, ...]
     adjuntos: tuple[Adjunto, ...]
     detalles: tuple[str, ...]
+
+
+def _detectar_excesos(
+    bytes_totales: int,
+    texto: str,
+    urls: Sequence[str],
+    adjuntos: Sequence[Adjunto],
+    profundidad: int,
+) -> list[str]:
+    """Devuelve una descripción por cada límite duro excedido (vacío si ninguno)."""
+    detalles: list[str] = []
+    if bytes_totales > LIMITE_BYTES_CORREO:
+        detalles.append(f"correo de {bytes_totales} B excede {LIMITE_BYTES_CORREO} B")
+    if len(texto) > LIMITE_CARACTERES_TEXTO:
+        detalles.append(f"texto de {len(texto)} chars excede {LIMITE_CARACTERES_TEXTO}")
+    if len(urls) > LIMITE_URLS:
+        detalles.append(f"{len(urls)} URLs exceden {LIMITE_URLS}")
+    if len(adjuntos) > LIMITE_ADJUNTOS:
+        detalles.append(f"{len(adjuntos)} adjuntos exceden {LIMITE_ADJUNTOS}")
+    if profundidad > LIMITE_NIVELES_MIME:
+        detalles.append(f"profundidad MIME {profundidad} excede {LIMITE_NIVELES_MIME}")
+    return detalles
 
 
 def evaluar_limites(
@@ -77,18 +108,7 @@ def evaluar_limites(
     if bytes_totales < 0 or profundidad < 0:
         raise ValueError("bytes_totales y profundidad no pueden ser negativos")
 
-    detalles: list[str] = []
-
-    if bytes_totales > LIMITE_BYTES_CORREO:
-        detalles.append(f"correo de {bytes_totales} B excede {LIMITE_BYTES_CORREO} B")
-    if len(texto) > LIMITE_CARACTERES_TEXTO:
-        detalles.append(f"texto de {len(texto)} chars excede {LIMITE_CARACTERES_TEXTO}")
-    if len(urls) > LIMITE_URLS:
-        detalles.append(f"{len(urls)} URLs exceden {LIMITE_URLS}")
-    if len(adjuntos) > LIMITE_ADJUNTOS:
-        detalles.append(f"{len(adjuntos)} adjuntos exceden {LIMITE_ADJUNTOS}")
-    if profundidad > LIMITE_NIVELES_MIME:
-        detalles.append(f"profundidad MIME {profundidad} excede {LIMITE_NIVELES_MIME}")
+    detalles = _detectar_excesos(bytes_totales, texto, urls, adjuntos, profundidad)
 
     return ResultadoLimites(
         bandera=BANDERA_LIMITE_EXCEDIDO if detalles else None,

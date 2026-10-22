@@ -8,6 +8,7 @@ from collections.abc import Callable
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from src.level2_agent.models import EmailData
 from src.level2_agent.normalizacion import (
     enmascarar_para_terceros,
     enmascarar_texto,
@@ -16,6 +17,12 @@ from src.level2_agent.normalizacion import (
 from src.level2_agent.normalizacion.enmascarado import (
     CONTIENE_CORREO,
     CONTIENE_DIGITOS_LARGOS,
+)
+from src.level2_agent.normalizacion.limites import (
+    LIMITE_ASUNTO_LLM,
+    LIMITE_CARACTERES_TEXTO,
+    LIMITE_HEADERS_LLM,
+    LIMITE_HTML_LLM,
 )
 
 
@@ -118,3 +125,44 @@ def test_propiedad_enmascarado_idempotente(texto: str) -> None:
     """Enmascarar dos veces es igual que enmascarar una vez."""
     una_vez = enmascarar_texto(texto)
     assert enmascarar_texto(una_vez) == una_vez
+
+
+@pytest.mark.ac("AC-NORM-04")
+def test_vista_llm_acota_asunto_html_y_cabeceras() -> None:
+    """La vista enviada al modelo acota asunto, HTML y cabeceras a sus topes (Art. 0.6)."""
+    email = EmailData(
+        subject="A" * (LIMITE_ASUNTO_LLM * 3),
+        htmlBody="<p>" + "B" * (LIMITE_HTML_LLM * 3) + "</p>",
+        headers="X-Gigante: " + "C" * (LIMITE_HEADERS_LLM * 3),
+    )
+    vista = enmascarar_para_terceros(email)
+    assert len(vista.subject) == LIMITE_ASUNTO_LLM
+    assert len(vista.htmlBody) == LIMITE_HTML_LLM
+    assert len(vista.headers) == LIMITE_HEADERS_LLM
+
+
+@pytest.mark.ac("AC-NORM-04")
+def test_vista_llm_respeta_presupuesto_total() -> None:
+    """El texto total que ve el modelo (asunto+HTML+cabeceras) no excede 20 000 (FR-004)."""
+    email = EmailData(
+        subject="A" * (LIMITE_ASUNTO_LLM * 3),
+        htmlBody="<p>" + "B" * (LIMITE_HTML_LLM * 3) + "</p>",
+        headers="X-Gigante: " + "C" * (LIMITE_HEADERS_LLM * 3),
+    )
+    vista = enmascarar_para_terceros(email)
+    total = len(vista.subject) + len(vista.htmlBody) + len(vista.headers)
+    assert total <= LIMITE_CARACTERES_TEXTO
+
+
+@pytest.mark.ac("AC-NORM-04")
+def test_vista_llm_no_trunca_contenido_corto() -> None:
+    """Un correo dentro de los topes conserva asunto, HTML y cabeceras intactos."""
+    email = EmailData(
+        subject="Asunto corto",
+        htmlBody="<p>hola</p>",
+        headers="X-Mailer: mi-cliente\nX-Priority: 1",
+    )
+    vista = enmascarar_para_terceros(email)
+    assert vista.subject == "Asunto corto"
+    assert vista.htmlBody == "<p>hola</p>"
+    assert vista.headers == "X-Mailer: mi-cliente\nX-Priority: 1"

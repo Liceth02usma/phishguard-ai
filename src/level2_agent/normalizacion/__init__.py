@@ -17,7 +17,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any, Literal
 
-from src.level2_agent.models import Adjunto, Cabecera, EmailData
+from src.level2_agent.models import Cabecera, EmailData
 from src.level2_agent.normalizacion.enmascarado import (
     enmascarar_para_terceros,
     enmascarar_texto,
@@ -33,6 +33,7 @@ from src.level2_agent.normalizacion.limites import (
     LIMITE_NIVELES_MIME,
     LIMITE_URLS,
     TEXTO_OCULTO_MARCADOR,
+    ResultadoLimites,
     evaluar_limites,
 )
 from src.level2_agent.normalizacion.parseo_mime import CorreoBruto, parsear_bytes
@@ -93,15 +94,38 @@ def _texto_para_llm(correo: CorreoBruto) -> str:
     return "\n\n".join(partes)
 
 
+def _recolectar_banderas(
+    correo: CorreoBruto, res: ResultadoLimites
+) -> tuple[list[str], list[str]]:
+    """Acumula banderas (límites + degradación) y sus detalles (SC-003).
+
+    Args:
+        correo: el correo crudo parseado.
+        res: resultado del acotamiento por límites.
+
+    Returns:
+        Tupla (banderas, detalles); vacías si el correo es sano.
+    """
+    banderas: list[str] = []
+    detalles: list[str] = []
+    if res.bandera is not None:
+        banderas.append(res.bandera)
+        detalles.extend(res.detalles)
+    # Degradación: vacío, sin cabeceras, sin cuerpo o con problemas de parseo.
+    sin_cabeceras = not correo.cabeceras
+    sin_cuerpo = not correo.cuerpo_html and not correo.cuerpo_texto
+    if correo.problemas or sin_cabeceras or sin_cuerpo:
+        banderas.append(BANDERA_ENTRADA_DEGRADADA)
+        detalles.extend(correo.problemas)
+    return banderas, detalles
+
+
 def _ensamblar(
     correo: CorreoBruto,
     origen: Literal["gmail", "api"],
     message_id: str,
 ) -> EmailData:
     """Construye el `EmailData` final desde un `CorreoBruto` (sin enmascarar)."""
-    banderas: list[str] = []
-    detalles: list[str] = []
-
     texto_limpio = _texto_para_llm(correo)
     urls = extraer_urls(correo.cuerpo_html, correo.cuerpo_texto)
     adjuntos = extraer_adjuntos(correo.adjuntos_crudos)
@@ -109,18 +133,8 @@ def _ensamblar(
     res = evaluar_limites(
         correo.bytes_totales, texto_limpio, urls, adjuntos, correo.profundidad_mime
     )
-    if res.bandera is not None:
-        banderas.append(res.bandera)
-        detalles.extend(res.detalles)
+    banderas, detalles = _recolectar_banderas(correo, res)
 
-    # Degradación: vacío, sin cabeceras, sin cuerpo o con problemas de parseo/decodificación.
-    sin_cabeceras = not correo.cabeceras
-    sin_cuerpo = not correo.cuerpo_html and not correo.cuerpo_texto
-    if correo.problemas or sin_cabeceras or sin_cuerpo:
-        banderas.append(BANDERA_ENTRADA_DEGRADADA)
-        detalles.extend(correo.problemas)
-
-    adjuntos_acotados: list[Adjunto] = list(res.adjuntos)
     return EmailData(
         htmlBody=correo.cuerpo_html,
         headers=_headers_legado(correo.cabeceras),
@@ -131,7 +145,7 @@ def _ensamblar(
         cabeceras=correo.cabeceras,
         texto_limpio=res.texto_limpio,
         urls=list(res.urls),
-        adjuntos=adjuntos_acotados,
+        adjuntos=list(res.adjuntos),
         origen=origen,
         banderas=banderas,
         revision_manual=bool(banderas),

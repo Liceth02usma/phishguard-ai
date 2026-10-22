@@ -43,10 +43,12 @@ def enmascarar_texto(texto: str) -> str:
 def enmascarar_para_terceros(email_data: EmailData) -> EmailData:
     """Devuelve una copia de `email_data` con la PII enmascarada para terceros.
 
-    Enmascara `subject`, `recipient`, `textBody`, `texto_limpio`, `htmlBody`
-    (truncado al límite del modelo), `headers`, las URLs y los nombres de
-    adjuntos; conserva intacta la cabecera `From` (remitente) y los
-    identificadores (`message_id`, `origen`, hashes).
+    Enmascara `subject`, `recipient`, `textBody`, `texto_limpio`, `htmlBody`,
+    `headers`, las URLs y los nombres de adjuntos; conserva intacta la cabecera
+    `From` (remitente) y los identificadores (`message_id`, `origen`, hashes).
+    El texto que ve el modelo (`subject`, `htmlBody`, `headers`) se enmascara
+    primero y luego se trunca a su cuota, de modo que el total nunca excede
+    `LIMITE_CARACTERES_TEXTO` (Art. 0.6 / FR-004).
 
     Args:
         email_data: correo normalizado (o legado).
@@ -55,15 +57,19 @@ def enmascarar_para_terceros(email_data: EmailData) -> EmailData:
         Una copia nueva con la vista apta para el LLM y la persistencia
         (AC-NORM-04). El objeto original no se modifica.
     """
-    from src.level2_agent.normalizacion.limites import LIMITE_CARACTERES_TEXTO
+    from src.level2_agent.normalizacion.limites import (
+        LIMITE_ASUNTO_LLM,
+        LIMITE_HEADERS_LLM,
+        LIMITE_HTML_LLM,
+    )
 
     copia = email_data.model_copy()
-    copia.subject = enmascarar_texto(email_data.subject)
+    copia.subject = enmascarar_texto(email_data.subject)[:LIMITE_ASUNTO_LLM]
     copia.recipient = enmascarar_texto(email_data.recipient)
     copia.textBody = enmascarar_texto(email_data.textBody)
     copia.texto_limpio = enmascarar_texto(email_data.texto_limpio)
-    copia.htmlBody = enmascarar_texto(email_data.htmlBody[:LIMITE_CARACTERES_TEXTO])
-    copia.headers = enmascarar_texto(email_data.headers)
+    copia.htmlBody = enmascarar_texto(email_data.htmlBody)[:LIMITE_HTML_LLM]
+    copia.headers = enmascarar_texto(email_data.headers)[:LIMITE_HEADERS_LLM]
     copia.cabeceras = [
         c
         if c.nombre.lower() == "from"

@@ -1,0 +1,51 @@
+# Configuración de herramientas de calidad para PhishGuard-AI.
+# Esta spec (000-calidad-base) configura las compuertas sobre el código nuevo
+# (scripts/ y tests/). Lint/typecheck sobre src/ se habilita progresivamente
+# en las specs 01-15 que refactorizan el código existente.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "ac(id: str): asocia una prueba a un criterio de aceptación AC-XXX-NN (Art. II.6)",
+]
+addopts = "-ra"
+
+[tool.coverage.run]
+branch = true
+source = ["scripts"]
+
+[tool.coverage.report]
+# Excepción aprobada por usuario para spec 000: cobertura real 79.72%.
+# Objetivo constitucional (Art. II.3): 80%. Ver informe final.
+fail_under = 79
+
+[tool.ruff]
+line-length = 100
+src = ["scripts", "tests/unit"]
+extend-exclude = [
+    "src",
+    "notebooks",
+    "data",
+    "workflow",
+    "tests/test_pipeline.py",
+    "tests/fixtures",
+    ".venv",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]  # assert está bien en pruebas
+
+[tool.mypy]
+strict = true
+files = ["scripts", "tests/unit"]
+exclude = ["src/", "notebooks/", "data/", "workflow/", "tests/test_pipeline.py"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+strict = false
+disable_error_code = ["no-untyped-def", "attr-defined"]

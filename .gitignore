@@ -7,3 +7,10 @@ token.json
 openspec
 .opencode
 credenciales.json
+# Artefactos de calidad (spec 000-calidad-base)
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

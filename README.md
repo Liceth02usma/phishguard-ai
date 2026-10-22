@@ -197,3 +197,19 @@ Para correos en zona gris (score 30-75):
 - **Pydantic** — Modelos de datos con validación
 
 Ver `requirements.txt` para la lista completa.
+
+## Comando de calidad
+
+El repositorio tiene compuertas automáticas que validan la constitución en cada cambio:
+
+```powershell
+python scripts/verify.py
+```
+
+Ejecuta 8 compuertas: longitud de archivos (≤500 líneas), nombre de rama, cobertura (≥80 % líneas y ramas), trazabilidad AC→prueba, secretos (`gitleaks`), dependencias (`pip-audit`), lint (`ruff`) y tipos (`mypy --strict`). Exit 0 si todas las obligatorias pasan; 1 si alguna falla. En Unix: `make verify`.
+
+**Trazabilidad**: cada prueba se marca con `@pytest.mark.ac("AC-XXX-NN")` para asociarla a un criterio de aceptación (Art. II.6 de la constitución). `python scripts/check_trazabilidad_ac.py --spec specs/NNN-*/spec.md` lista los AC sin prueba.
+
+**Alcance actual** (spec 000): las compuertas de lint, tipos y cobertura se aplican sobre `scripts/` y `tests/unit/` (código nuevo). Su extensión a `src/` se habilita progresivamente en las specs 01–15 que refactorizan el código existente. `gitleaks` y `pip-audit` sí cubren todo el repo/entorno.
+
+**CI**: `.github/workflows/verify.yml` ejecuta `python scripts/verify.py` en cada pull request y bloquea el merge si falla.

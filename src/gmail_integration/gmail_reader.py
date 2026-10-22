@@ -19,6 +19,22 @@ def list_unread_messages(service, max_results=10):
     return [msg["id"] for msg in messages]
 
 
+def get_message_raw(service, msg_id):
+    """Devuelve los bytes crudos del mensaje (Gmail `format="raw"`).
+
+    Args:
+        service: cliente de la API de Gmail.
+        msg_id: ID del mensaje.
+
+    Returns:
+        bytes crudos del mensaje (Base64 url-safe ya decodificado).
+    """
+    msg = service.users().messages().get(
+        userId="me", id=msg_id, format="raw"
+    ).execute()
+    return base64.urlsafe_b64decode(msg["raw"].encode("ASCII"))
+
+
 def get_message_details(service, msg_id):
     msg = service.users().messages().get(
         userId="me", id=msg_id, format="raw"

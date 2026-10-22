@@ -1,12 +1,15 @@
-import os
+from __future__ import annotations
+
+import logging
 import sys
 import time
-import logging
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 logging.basicConfig(
@@ -18,21 +21,21 @@ logger = logging.getLogger(__name__)
 from src.gmail_integration.gmail_auth import authenticate_gmail
 from src.gmail_integration.gmail_reader import (
     get_gmail_service,
+    get_message_raw,
     list_unread_messages,
-    get_message_details,
     mark_as_read,
     move_to_label,
 )
-from src.gmail_integration.email_to_emaildata import gmail_to_emaildata
 from src.level2_agent.agent import analyze_email
+from src.level2_agent.normalizacion import normalizar_desde_gmail
 
 POLL_INTERVAL = 30
 
 
-def process_message(service, msg_id):
+def process_message(service: Any, msg_id: str) -> None:
     try:
-        raw_msg = get_message_details(service, msg_id)
-        email_data = gmail_to_emaildata(raw_msg)
+        raw_bytes = get_message_raw(service, msg_id)
+        email_data = normalizar_desde_gmail(raw_bytes, msg_id)
         logger.info("Analizando correo: %s", email_data.subject)
         report = analyze_email(email_data)
 

@@ -1,26 +1,26 @@
+import logging
 import os
 import re
-import logging
-from typing import Optional
 
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import StructuredTool
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
 
 from .models import (
-    EmailData,
-    PhishingReport,
-    SCORE_UMBRAL_BAJO,
-    SCORE_UMBRAL_ALTO,
     SCORE_FALLBACK,
+    SCORE_UMBRAL_ALTO,
+    SCORE_UMBRAL_BAJO,
+    SEVERIDAD_ALTO,
     SEVERIDAD_BAJO,
     SEVERIDAD_CRITICO,
-    SEVERIDAD_ALTO,
+    EmailData,
+    PhishingReport,
 )
-from .prompts import _build_system_prompt, HUMAN_TEMPLATE
+from .normalizacion import enmascarar_para_terceros
+from .prompts import HUMAN_TEMPLATE, _build_system_prompt
 from .tools import create_retriever
 from .tools.ip_reputation import ip_reputation_tool
 from .tools.jira_integration import create_jira_ticket
@@ -28,7 +28,7 @@ from .tools.jira_integration import create_jira_ticket
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-llm: Optional[ChatGoogleGenerativeAI] = None
+llm: ChatGoogleGenerativeAI | None = None
 react_agent = None
 
 
@@ -202,10 +202,12 @@ def analyze_email(email_data: EmailData) -> PhishingReport:
 
         agent = _get_react_agent()
 
+        # Art. 0.6/V.4: el LLM solo ve la vista enmascarada de la PII (D8).
+        vista_llm = enmascarar_para_terceros(email_data)
         human_content = HUMAN_TEMPLATE.format(
-            subject=email_data.subject,
-            htmlBody=email_data.htmlBody,
-            headers=email_data.headers,
+            subject=vista_llm.subject,
+            htmlBody=vista_llm.htmlBody,
+            headers=vista_llm.headers,
         )
 
         messages = [HumanMessage(content=human_content)]

@@ -8,7 +8,7 @@ spec 001 (Art. II.5 — sin red real).
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -88,3 +88,77 @@ def entorno_sin_mongo(monkeypatch: pytest.MonkeyPatch) -> None:
     ruta del agente llama a get_chat_history y lanza ValueError.
     """
     monkeypatch.delenv("MONGODB_ATLAS_CLUSTER_URI", raising=False)
+
+
+# --- Fábrica de correos .eml para la spec 002 (AC-NORM-01..06, Art. II.5) ---
+
+
+@pytest.fixture
+def fabrica_eml() -> Callable[..., bytes]:
+    """Devuelve una función que construye bytes `.eml` (multipart) parametrizable.
+
+    El builder permite controlar cabeceras repetidas (`received`), cuerpos
+    HTML/texto, adjuntos y cabeceras extra, para alimentar los AC de
+    normalización sin red.
+    """
+    import email as _email
+    from email.message import EmailMessage
+
+    def construir(
+        *,
+        received: Sequence[str] = ("via mail;1",),
+        html: str | None = None,
+        texto: str | None = "cuerpo de texto",
+        adjuntos: Sequence[tuple[str, str, bytes]] = (),
+        cabeceras_extra: Sequence[tuple[str, str]] = (),
+        asunto: str = "Asunto de prueba",
+        remitente: str = "juan.perez@empresa.com",
+        destinatario: str = "destino@empresa.com",
+        message_id: str = "<msg-prueba@empresa.com>",
+    ) -> bytes:
+        """Construye un `.eml` en bytes con la estructura pedida."""
+        msg = EmailMessage()
+        msg["From"] = remitente
+        msg["To"] = destinatario
+        msg["Subject"] = asunto
+        msg["Message-ID"] = message_id
+        for valor in received:
+            msg["Received"] = valor
+        for nombre, valor in cabeceras_extra:
+            msg[nombre] = valor
+
+        partes_texto = texto is not None
+        partes_html = html is not None
+        if partes_texto and partes_html:
+            msg.set_content(texto)
+            msg.add_alternative(html, subtype="html")
+        elif partes_texto:
+            msg.set_content(texto)
+        elif partes_html:
+            msg.set_content(html, subtype="html")
+        for nombre, tipo, payload in adjuntos:
+            maintype, subtype = tipo.split("/", 1)
+            msg.add_attachment(payload, maintype=maintype, subtype=subtype, filename=nombre)
+
+        return msg.as_bytes(policy=_email.policy.default)
+
+    return construir
+
+
+@pytest.fixture
+def fabrica_html_oculto() -> Callable[[str], str]:
+    """Devuelve una función que envuelve HTML con script, comentario y texto oculto."""
+
+    def construir(visible: str) -> str:
+        return (
+            "<html><head><style>.x{color:red}</style></head>"
+            "<body>"
+            "<script>alert('x')</script>"
+            "<!-- comentario oculto -->"
+            f"<p style='display:none'>{visible}-oculto</p>"
+            f"<p style='font-size:0'>{visible}-cero</p>"
+            f"<a href='https://ejemplo.com'>{visible}</a>"
+            "</body></html>"
+        )
+
+    return construir

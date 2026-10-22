@@ -1,0 +1,26 @@
+From: juan.perez@empresa.com
+To: destino@empresa.com
+Subject: Factura pendiente
+Message-ID: <fixture-001@empresa.com>
+Received: by mail1; primer servidor
+Received: by mail2; segundo servidor
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============1032747214017773388=="
+
+--===============1032747214017773388==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hola, adjunto factura. Mi tarjeta 4111111111111111 y correo juan.perez@empres=
+a.com
+
+--===============1032747214017773388==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body><script>alert(1)</script><p style=3D"display:none">oculto</p><a h=
+ref=3D"https://facturas-empresa.com">ver factura</a></body></html>
+
+--===============1032747214017773388==--

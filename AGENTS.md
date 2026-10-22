@@ -36,7 +36,7 @@ Optional: `VT_API_KEY`, `JIRA_*`. Tools degrade gracefully when absent (logged w
 - **Pipeline thresholds** live in `src/level2_agent/models.py`: `SCORE_UMBRAL_BAJO=30`, `SCORE_UMBRAL_ALTO=75`, `SCORE_FALLBACK=50.0`. `analyze_email()` branches on these. The test runner duplicates the 30/75 literals in `detect_route()` — keep them in sync.
 - **Genetic weights are hardcoded** in `src/level3_logic/genetic_logic.py` (`PESOS_AG`, 32 genes). `data/genes.xlsx` / `data/Tabla de genes...` are the source spreadsheets, **not loaded at runtime** — editing the xlsx does nothing; edit `PESOS_AG`/`MAPEO_INDICES` in code.
 - **LLM model strings are hardcoded**: `models/gemini-2.5-flash-lite` (chat) in `agent.py`, `models/gemini-embedding-001` (embeddings) in `tools/__init__.py`. Not env-driven.
-- **MongoDB namespaces** are constants in `models.py`: vector store `phishguard.docs_phishing` (index `vector_index`), memory `memory-agent.memory`. The README's "create collection `docs_phishing`" refers to this namespace.
+- **MongoDB namespaces** are constants in `models.py`: vector store `phishguard.docs_phishing` (index `vector_index`). The README's "create collection `docs_phishing`" refers to this namespace. There is NO chat-history memory since spec 001 (`refactor/eliminar-memoria`): each email analysis is independent.
 - **Jira integration** hardcodes project key `SCRUM` and issuetype `Task` in `tools/jira_integration.py`. Only triggers when `report.es_phishing` is true **and** all `JIRA_*` env vars are set.
 - **Gmail OAuth**: `credenciales.json` (OAuth desktop creds) at repo root → first poller run opens browser and writes `token.json`. Both are gitignored. Poller moves phishing to label `"Phishing Alertas"` (created/assumed to exist in Gmail).
 

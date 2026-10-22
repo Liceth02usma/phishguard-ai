@@ -136,7 +136,6 @@ phishguard-ai/
 │   │   ├── agent.py            # Orquestador ReAct + genético
 │   │   ├── models.py           # EmailData, PhishingReport
 │   │   ├── prompts.py          # System prompts NIST/OWASP
-│   │   ├── memory.py           # Chat history en MongoDB
 │   │   └── tools/
 │   │       ├── __init__.py     # Retriever RAG vectorial
 │   │       ├── ip_reputation.py # Consulta VirusTotal
@@ -192,7 +191,7 @@ Para correos en zona gris (score 30-75):
 
 - **LangChain / LangGraph** — Framework de agentes y cadenas LLM
 - **Google Generative AI** — Modelo Gemini (embeddings + chat)
-- **MongoDB Atlas** — Vector store y memoria conversacional
+- **MongoDB Atlas** — Vector store (RAG)
 - **Google API Client** — Integración Gmail
 - **Pydantic** — Modelos de datos con validación
 

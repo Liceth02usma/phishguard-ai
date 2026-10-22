@@ -49,3 +49,10 @@ exclude = ["src/", "notebooks/", "data/", "workflow/", "tests/test_pipeline.py"]
 module = "tests.*"
 strict = false
 disable_error_code = ["no-untyped-def", "attr-defined"]
+
+# Código legado de src/: las pruebas de spec lo importan, pero su tipado
+# estricto se habilita progresivamente en las specs 01-15 que lo refactorizan
+# (decisión de alcance de spec 000; no se baja ningún umbral para scripts/).
+[[tool.mypy.overrides]]
+module = "src.*"
+ignore_errors = true

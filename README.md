@@ -153,6 +153,16 @@ phishguard-ai/
 │   │   │   ├── extraccion.py   # URLs + adjuntos (SHA-256)
 │   │   │   ├── limites.py      # 5 límites duros + banderas
 │   │   │   └── enmascarado.py  # PII → vista para terceros
+│   │   ├── banderas/           # Banderas deterministas (spec 003, M03)
+│   │   │   ├── __init__.py     # API pública: evaluar_banderas
+│   │   │   ├── motor.py        # Compone 5 familias + tope 60 puntos
+│   │   │   ├── modelos.py      # Catálogo 5.1 + contexto + helpers
+│   │   │   ├── configuracion.py # Config por variable de entorno
+│   │   │   ├── autenticacion.py # RFC 8601 + SPF/DKIM/DMARC
+│   │   │   ├── dominios.py     # Distancia + homoglifos + punycode
+│   │   │   ├── identidad.py    # Reply-To / Return-Path / Message-ID
+│   │   │   ├── contexto.py     # Received / Date + Reply-To gratuito
+│   │   │   └── rdap.py         # Edad del dominio (cache 7 días)
 │   │   └── tools/
 │   │       ├── __init__.py     # Retriever RAG vectorial
 │   │       ├── ip_reputation.py # Consulta VirusTotal
@@ -205,6 +215,22 @@ Para correos en zona gris (score 30-75):
 | Sospechoso (30-75, IA confirma) | Mover a etiqueta "Phishing Alertas" |
 | Sospechoso (30-75, IA descarta) | Marcar como leído |
 
+### Banderas de cabeceras (spec 003, módulo M03)
+
+Capa determinista (sin IA) que, a partir de un `EmailData` normalizado, produce las **16 banderas** del catálogo 5.1 con código, severidad, puntos y detalle:
+
+```python
+from src.level2_agent.banderas import evaluar_banderas, ConfigBanderas
+
+config = ConfigBanderas.desde_entorno()          # AUTHSERV_ID, DOMINIOS_PROPIOS, ...
+resultado = evaluar_banderas(email_data, config=config)
+resultado.estados_autenticacion                  # SPF/DKIM/DMARC (RFC 8601)
+resultado.banderas                               # [{codigo, severidad, puntos, detalle}]
+resultado.puntos_totales                         # suma con tope de 60
+```
+
+Cinco familias de estrategias (Strategy + Registry): autenticación (`Authentication-Results` solo si `authserv-id` coincide), identidad (Reply-To/Return-Path/Message-ID y nombre visible), dominios (distancia de edición ≤2, homoglifos, punycode), contexto (`Received`/`Date` y Reply-To gratuito) y RDAP (edad del dominio con caché de 7 días). La severidad y los puntos salen **únicamente** del catálogo 5.1 (`modelos.py`), nunca se inventan en las estrategias. Configuración por variable de entorno: ver `.env.example` y `specs/003-banderas-cabeceras/`.
+
 ## Dependencias principales
 
 - **LangChain / LangGraph** — Framework de agentes y cadenas LLM
@@ -213,6 +239,7 @@ Para correos en zona gris (score 30-75):
 - **Google API Client** — Integración Gmail
 - **Pydantic** — Modelos de datos con validación
 - **Hypothesis** — Pruebas basadas en propiedades (enmascarado PII, spec 002)
+- **tldextract** — Dominio registrable vía PSL embebida (banderas, spec 003)
 
 Ver `requirements.txt` para la lista completa.
 

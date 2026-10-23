@@ -162,3 +162,63 @@ def fabrica_html_oculto() -> Callable[[str], str]:
         )
 
     return construir
+
+
+# --- Fábrica de correos EmailData para la spec 003 (AC-HDR-01..06, Art. II.5) ---
+
+
+@pytest.fixture
+def construir_correo() -> Callable[..., Any]:
+    """Devuelve una función que construye ``EmailData`` con cabeceras dadas.
+
+    El builder permite controlar las cabeceras (Authentication-Results, From,
+    Reply-To, Return-Path, Message-ID, Date, Received) y los campos normalizados
+    (asunto, texto_limpio), para alimentar las banderas sin red (Art. II.5).
+    """
+    from src.level2_agent.models import Cabecera, EmailData
+
+    def construir(
+        *,
+        cabeceras: Sequence[tuple[str, str]] = (),
+        asunto: str = "",
+        message_id: str = "",
+        texto_limpio: str = "",
+    ) -> Any:
+        return EmailData(
+            cabeceras=[Cabecera(nombre=n, valor=v) for n, v in cabeceras],
+            subject=asunto,
+            message_id=message_id,
+            texto_limpio=texto_limpio,
+        )
+
+    return construir
+
+
+# --- Dobles de RDAP para la spec 003 (AC-HDR-06, Art. II.5: sin red real) ---
+
+
+class _ClienteRDAPNulo:
+    """Doble que simula RDAP caido: devuelve ``None`` sin excepcion."""
+
+    def registrar_evento(self, dominio: str) -> None:
+        return None
+
+
+@pytest.fixture
+def rdap_nulo() -> _ClienteRDAPNulo:
+    """Cliente RDAP que nunca devuelve fecha (fallo)."""
+    return _ClienteRDAPNulo()
+
+
+@pytest.fixture
+def rdap_fijo() -> Any:
+    """Factory de clientes RDAP que devuelven siempre la misma fecha de registro."""
+
+    def crear(fecha: Any) -> Any:
+        class _Cliente:
+            def registrar_evento(self, dominio: str) -> Any:
+                return fecha
+
+        return _Cliente()
+
+    return crear

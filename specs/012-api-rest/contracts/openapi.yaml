@@ -1,0 +1,1125 @@
+openapi: 3.1.0
+info:
+  title: PhishGuard-AI API
+  version: 1.0.0-contrato
+  description: |
+    Contrato de la API REST de PhishGuard-AI para el frontend (spec 012).
+
+    Fuentes: `docs/PLAN_MODIFICACIONES_PHISHGUARD.md` §14.2–14.4, specs 011 y 012,
+    `src/level2_agent/models.py` y la constitución (Art. V.8: sin roles, una única X-API-Key).
+
+    Reglas transversales:
+    - JSON UTF-8; autenticación por cabecera `X-API-Key` en todo salvo `GET /api/health`.
+    - **No existen roles** (constitución Art. V.8): todos los endpoints autenticados tienen los mismos derechos.
+    - `dry_run` está activo por defecto en `POST /api/analyses` (la respuesta lo refleja en `accion.simulada`).
+    - Las caídas de VirusTotal, el modelo o RDAP NO son errores: devuelven 201 con
+      `resultado.veredicto = revision_manual` y `resultado.verificaciones_incompletas`.
+    - `revision_manual` es un veredicto válido del contrato (FR-007).
+  license:
+    name: Interno
+servers:
+  - url: http://localhost:8000
+    description: Desarrollo local (FastAPI)
+tags:
+  - name: Salud
+    description: Estado del servicio (sin autenticación)
+  - name: Integraciones
+    description: Estado de los servicios externos
+  - name: Muestras
+    description: Casos de ejemplo para el frontend
+  - name: Analisis
+    description: Creación, consulta, exportación y retroalimentación de análisis
+  - name: Metricas
+    description: KPI del tablero
+  - name: Jobs
+    description: Estado y ejecución del poller de Gmail
+
+security:
+  - apiKeyHeader: []
+
+paths:
+  /api/health:
+    get:
+      tags: [Salud]
+      operationId: getHealth
+      summary: Estado de Mongo (único endpoint sin X-API-Key)
+      security: []
+      responses:
+        '200':
+          description: Estado del servicio. [VERIFICAR] si Mongo caído debe responder 503 en vez de 200 con estado error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                estado: ok
+        '503':
+          $ref: '#/components/responses/Error503'
+
+  /api/integraciones:
+    get:
+      tags: [Integraciones]
+      operationId: getIntegraciones
+      summary: Estado de Mongo, VirusTotal, el modelo y Gmail (sin revelar claves ni URLs internas)
+      responses:
+        '200':
+          description: Estado de las integraciones para el tablero.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integraciones'
+              example:
+                mongo:
+                  estado: ok
+                virustotal:
+                  estado: ok
+                  modo: public
+                  cuota_restante_estimada: 237
+                modelo:
+                  estado: ok
+                gmail:
+                  estado: ok
+        '401':
+          $ref: '#/components/responses/Error401'
+        '503':
+          $ref: '#/components/responses/Error503'
+
+  /api/samples:
+    get:
+      tags: [Muestras]
+      operationId: getSamples
+      summary: Casos de ejemplo precargados para el modo muestra
+      description: |
+        [PROPUESTA] Forma basada en los fixtures existentes (`benign`, `malicious`, `ai_agent`);
+        verificar contra `ESPECIFICACION_INTERFAZ_PHISHING.md` v2.0 (no está en el repo).
+      responses:
+        '200':
+          description: Lista de muestras.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Muestra'
+              example:
+                - id: benign
+                  nombre: Correo legítimo
+                  descripcion: Newsletter benigna de ejemplo
+                  contenido: 'De: news@empresa.com\nSubject: Tu boletín semanal\n\n...'
+                - id: malicious
+                  nombre: Phishing de banca
+                  descripcion: Suplantación de banco con urgencia y enlace falso
+                  contenido: 'De: soporte@banc0-seguro.com\nSubject: Acceso bloqueado\n\n...'
+        '401':
+          $ref: '#/components/responses/Error401'
+
+  /api/analyses:
+    post:
+      tags: [Analisis]
+      operationId: postAnalyses
+      summary: Analizar un correo (modos pegar y muestra en JSON; eml en multipart)
+      description: |
+        `dry_run` activo por defecto: la respuesta refleja `accion.simulada = true` (AC-API-03).
+
+        Campos del modo `pegar` alineados con `normalizar_desde_api()` (spec 002):
+        `raw` (base64 url-safe, opcional), `subject`, `from`, `to`, `text`, `html`,
+        `headers` (objeto), `message_id`. Con `raw` se usa el camino MIME completo.
+
+        Límite de tasa: 30 análisis por minuto por clave e IP → el análisis 31 devuelve 429 (AC-API-09).
+
+        Caídas de VirusTotal, el modelo o RDAP NO son error: 201 con `veredicto = revision_manual`
+        y `verificaciones_incompletas` poblado (AC-API-10).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/AnalisisPegar'
+                - $ref: '#/components/schemas/AnalisisMuestra'
+            examples:
+              pegar:
+                summary: Modo pegar (dry_run por defecto)
+                value:
+                  modo: pegar
+                  dry_run: true
+                  from: 'j***@empresa.com'
+                  subject: 'Acceso bloqueado: verifica tu cuenta'
+                  text: 'Tu cuenta será suspendida en 24 h. Ingresa aquí: http://bit.ly/x'
+                  headers:
+                    Authentication-Results: 'mx.propio; spf=fail dkim=none dmarc=none'
+              muestra:
+                summary: Modo muestra
+                value:
+                  modo: muestra
+                  muestra: malicious
+                  dry_run: true
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnalisisEml'
+            encoding:
+              archivo:
+                contentType: message/rfc822
+      responses:
+        '201':
+          description: Análisis creado (o simulado). Coincide con el documento `analyses` de §14.2.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analisis'
+              example:
+                id: 65f1c0ffee00000000000421
+                origen: api
+                modo: pegar
+                creado_en: '2026-10-22T14:03:11-05:00'
+                duracion_ms: 4200
+                correo:
+                  remitente: 'b***@banc0-seguro.com'
+                  asunto: 'Acceso bloqueado: verifica tu cuenta'
+                  cuerpo_enmascarado: 'Tu cuenta será suspendida en 24 h. Ingresa aquí: [NÚMERO_OCULTO]'
+                resultado:
+                  score: 82
+                  score_genetico: 61
+                  ruta: reglas
+                  es_phishing: true
+                  veredicto: malicioso
+                  nivel_severidad: Crítico
+                  resumen: Correo de suplantación con urgencia y enlace acortado.
+                  analisis_tecnico: 'SPF falla; dominio parecido a la marca protegida; URL acortada.'
+                  justificacion_veredicto: Regla R2 (URL maliciosa) y R4 (autenticación fallida).
+                  indicadores:
+                    - codigo: urgencia
+                      descripcion: Urgencia
+                      peso: 1.25
+                  banderas:
+                    - codigo: SPF_FALLA
+                      severidad: alta
+                      puntos: 15
+                      detalle: 'Authentication-Results del servidor propio: spf=fail'
+                    - codigo: DOMINIO_PARECIDO
+                      severidad: alta
+                      puntos: 15
+                      detalle: 'banc0-seguro.com a distancia 1 de banco.com'
+                  reglas_aplicadas: [R2, R4]
+                  verificaciones_incompletas: []
+                  autenticacion:
+                    spf: fail
+                    dkim: desconocido
+                    dmarc: desconocido
+                  urls:
+                    - url: 'http://bit.ly/x'
+                      reputacion: maliciosa
+                      detalle_vt:
+                        malicious: 7
+                        suspicious: 1
+                  adjuntos:
+                    - nombre: factura.pdf.exe
+                      tipo_real: application/x-dosexec
+                      sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+                      tamano: 123456
+                      reputacion: maliciosa
+                  version_pesos: pesos_v1
+                  version_modelo: models/gemini-2.5-flash-lite
+                  ticket:
+                    clave: SEC-12
+                    url: 'https://proyecto.atlassian.net/browse/SEC-12'
+                accion:
+                  ejecutada: etiqueta_phishing
+                  simulada: true
+        '401':
+          $ref: '#/components/responses/Error401'
+        '413':
+          $ref: '#/components/responses/Error413'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '500':
+          $ref: '#/components/responses/Error500'
+        '503':
+          $ref: '#/components/responses/Error503'
+    get:
+      tags: [Analisis]
+      operationId: listAnalyses
+      summary: Lista paginada de análisis con filtros
+      parameters:
+        - name: veredicto
+          in: query
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Veredicto'
+          description: Filtro por veredicto (repetible).
+        - name: severidad
+          in: query
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Severidad'
+          description: Filtro por severidad (repetible).
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Búsqueda libre (asunto/remitente enmascarados).
+        - name: desde
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Fecha inicial (inclusive). [VERIFICAR] formato exacto (date vs date-time).
+        - name: hasta
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Fecha final (inclusive). [VERIFICAR] formato exacto.
+        - name: orden
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'Orden de resultados. [VERIFICAR] valores exactos (definidos en el plan de la spec 012).'
+        - name: pagina
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Página (base 1).
+        - name: limite
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+          description: Tamaño de página; máximo 50. [VERIFICAR] valor por defecto.
+      responses:
+        '200':
+          description: Página de análisis.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalisisPaginado'
+              example:
+                items: []
+                pagina: 1
+                limite: 50
+                total: 100
+        '401':
+          $ref: '#/components/responses/Error401'
+        '422':
+          $ref: '#/components/responses/Error422'
+
+  /api/analyses/export.csv:
+    get:
+      tags: [Analisis]
+      operationId: exportAnalysesCsv
+      summary: Exportación CSV de los análisis (mismos filtros que la lista)
+      description: |
+        UTF-8 con BOM; protección contra inyección de fórmulas: prefijo `'` en celdas que
+        empiezan con `=`, `+`, `-` o `@`; máximo 5 000 filas (AC-API-08).
+      parameters:
+        - name: veredicto
+          in: query
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Veredicto'
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Archivo CSV (Content-Type text/csv; charset=utf-8 con BOM).
+          content:
+            text/csv:
+              schema:
+                type: string
+              example: |
+                id,creado_en,veredicto,nivel_severidad,score,asunto
+                65f1c0ffee00000000000421,2026-10-22T14:03:11-05:00,malicioso,Crítico,82,"'=HYPERLINK(""http://x"")""
+        '401':
+          $ref: '#/components/responses/Error401'
+
+  /api/analyses/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdAnalisis'
+    get:
+      tags: [Analisis]
+      operationId: getAnalysesById
+      summary: Detalle de un análisis
+      responses:
+        '200':
+          description: Análisis encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analisis'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+    delete:
+      tags: [Analisis]
+      operationId: deleteAnalysesById
+      summary: Borrado a solicitud (elimina el análisis y su caché asociada)
+      responses:
+        '204':
+          description: 'Borrado completado. [VERIFICAR] código 204 vs 200 (no fijado por la spec).'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '503':
+          $ref: '#/components/responses/Error503'
+
+  /api/analyses/{id}/feedback:
+    parameters:
+      - $ref: '#/components/parameters/IdAnalisis'
+    patch:
+      tags: [Analisis]
+      operationId: patchAnalysesFeedback
+      summary: Retroalimentación del análisis (habilita el KPI de falsos positivos)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackBody'
+            example:
+              feedback: falso_positivo
+      responses:
+        '200':
+          description: 'Análisis con la retroalimentación registrada. [PROPUESTA] forma de respuesta.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analisis'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '422':
+          $ref: '#/components/responses/Error422'
+
+  /api/metrics/summary:
+    get:
+      tags: [Metricas]
+      operationId: getMetricsSummary
+      summary: KPI del tablero para un rango de 7d, 30d o 90d
+      description: |
+        `por_dia` incluye los días en cero, en zona America/Bogota (AC-PER-04).
+        `tasa_falsos_positivos` es `null` cuando no hay retroalimentación (AC-PER-05).
+        Sobre los datos de siembra: total 100; 55/15/30 por veredicto; 60,0 % sin modelo (AC-PER-03).
+      parameters:
+        - name: rango
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Rango'
+          example: 7d
+      responses:
+        '200':
+          description: Métricas agregadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Metricas'
+              example:
+                rango: 7d
+                total: 100
+                por_veredicto:
+                  sin_indicadores: 55
+                  sospechoso: 15
+                  malicioso: 30
+                  revision_manual: 0
+                por_ruta:
+                  reglas: 20
+                  heuristica: 40
+                  ia: 40
+                pct_sin_modelo: 60
+                duracion_media_ms: 4200
+                por_dia:
+                  - fecha: '2026-10-16'
+                    total: 0
+                  - fecha: '2026-10-17'
+                    total: 14
+                indicadores_frecuentes:
+                  - codigo: urgencia
+                    descripcion: Urgencia
+                    frecuencia: 42
+                tasa_falsos_positivos: null
+                consultas_vt: 812
+                aciertos_cache_pct: 47.5
+                revision_manual_total: 0
+        '401':
+          $ref: '#/components/responses/Error401'
+        '422':
+          $ref: '#/components/responses/Error422'
+
+  /api/jobs/gmail:
+    get:
+      tags: [Jobs]
+      operationId: getJobsGmail
+      summary: Estado del poller (último ciclo, pendientes, fallidos)
+      responses:
+        '200':
+          description: Estado actual del poller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobsGmail'
+              example:
+                ultimo_ciclo: '2026-10-22T14:00:00-05:00'
+                pendientes: 3
+                fallidos: 0
+        '401':
+          $ref: '#/components/responses/Error401'
+
+  /api/jobs/gmail/run:
+    post:
+      tags: [Jobs]
+      operationId: postJobsGmailRun
+      summary: Forzar un ciclo del poller (misma X-API-Key; sin roles — Art. V.8)
+      description: |
+        No hay control de roles: requiere la misma `X-API-Key` que cualquier otro endpoint
+        autenticado (constitución Art. V.8).
+      responses:
+        '200':
+          description: 'Resultado del ciclo ejecutado. [PROPUESTA] misma forma que el estado del poller.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobsGmail'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '429':
+          $ref: '#/components/responses/Error429'
+
+components:
+  securitySchemes:
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Clave única compartida (sin roles — constitución Art. V.8). Sin ella, todo endpoint
+        salvo `GET /api/health` devuelve 401 (AC-API-07).
+
+  parameters:
+    IdAnalisis:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Identificador del análisis.
+
+  schemas:
+    Veredicto:
+      type: string
+      enum: [malicioso, sospechoso, revision_manual, sin_indicadores]
+      description: Veredicto del motor de decisión (spec 008). `revision_manual` agregado por FR-007.
+    Severidad:
+      type: string
+      enum: [Crítico, Alto, Medio, Bajo]
+      description: Nivel de severidad (models.py / spec 008 FR-005).
+    Ruta:
+      type: string
+      enum: [reglas, heuristica, ia]
+      description: Ruta por la que se resolvió el análisis (spec 008 FR-005).
+    Modo:
+      type: string
+      enum: [pegar, eml, muestra, gmail]
+      description: Modo de creación del análisis (§14.2).
+    Origen:
+      type: string
+      enum: [gmail, api, seed]
+      description: Origen del análisis persistido (§14.2; los datos de siembra usan `seed`).
+    Reputacion:
+      type: string
+      enum: [maliciosa, sospechosa, limpia, desconocida]
+      description: Clasificación de VirusTotal (plan §M06.4). 404/error/cuota → `desconocida`, nunca `limpia`.
+    Feedback:
+      type: string
+      enum: [confirmado, falso_positivo]
+      description: Retroalimentación del usuario (§14.3).
+    Rango:
+      type: string
+      enum: ['7d', '30d', '90d']
+      description: Rango de las métricas.
+    AuthResult:
+      type: string
+      description: |
+        Resultado de autenticación (SPF/DKIM/DMARC). Tokens RFC 8601 (`pass`, `fail`, `none`,
+        `neutral`, `softfail`, `permerror`, `temperror`) y `desconocido` cuando no hay
+        `Authentication-Results` confiable (spec 003 FR-002). [VERIFICAR] catálogo exacto
+        contra la implementación de la spec 003.
+      examples: [pass, fail, none, desconocido]
+    Cabecera:
+      type: object
+      required: [nombre, valor]
+      properties:
+        nombre:
+          type: string
+          description: Nombre original de la cabecera.
+        valor:
+          type: string
+          description: Valor decodificado (RFC 2047 resuelto).
+    Indicador:
+      type: object
+      required: [codigo, descripcion, peso]
+      properties:
+        codigo:
+          type: string
+        descripcion:
+          type: string
+        peso:
+          type: number
+          description: Multiplicador del indicador sobre el score.
+    Banda:
+      type: object
+      required: [codigo, severidad, puntos, detalle]
+      properties:
+        codigo:
+          type: string
+          description: 'Código del catálogo (ej. SPF_FALLA, DOMINIO_PARECIDO, LIMITE_EXCEDIDO). La suma por correo nunca supera 60 (spec 003 AC-HDR-05).'
+        severidad:
+          type: string
+          enum: [baja, media, alta]
+          description: '[VERIFICAR] valores exactos del catálogo 5.1.'
+        puntos:
+          type: integer
+        detalle:
+          type: string
+    Autenticacion:
+      type: object
+      required: [spf, dkim, dmarc]
+      properties:
+        spf:
+          $ref: '#/components/schemas/AuthResult'
+        dkim:
+          $ref: '#/components/schemas/AuthResult'
+        dmarc:
+          $ref: '#/components/schemas/AuthResult'
+    DetalleVT:
+      type: object
+      description: Recorte de `last_analysis_stats` de VirusTotal.
+      properties:
+        malicious:
+          type: integer
+        suspicious:
+          type: integer
+        harmless:
+          type: integer
+        undetected:
+          type: integer
+      additionalProperties: true
+    UrlAnalisis:
+      type: object
+      required: [url, reputacion]
+      properties:
+        url:
+          type: string
+        reputacion:
+          $ref: '#/components/schemas/Reputacion'
+        detalle_vt:
+          $ref: '#/components/schemas/DetalleVT'
+    AdjuntoAnalisis:
+      type: object
+      required: [nombre, sha256, tamano, reputacion]
+      properties:
+        nombre:
+          type: string
+        tipo_real:
+          type: string
+          description: Tipo MIME real detectado (no el declarado).
+        sha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        tamano:
+          type: integer
+        reputacion:
+          $ref: '#/components/schemas/Reputacion'
+    Ticket:
+      type: object
+      required: [clave, url]
+      properties:
+        clave:
+          type: string
+          description: 'Clave del ticket Jira (ej. SEC-12).'
+        url:
+          type: string
+    Correo:
+      type: object
+      required: [remitente, asunto, cuerpo_enmascarado]
+      description: Siempre con PII enmascarada (Art. V.4); el HTML original nunca se persiste.
+      properties:
+        remitente:
+          type: string
+          description: Remitente enmascarado (el remitente conserva dominio y primera letra).
+        asunto:
+          type: string
+        cuerpo_enmascarado:
+          type: string
+    Resultado:
+      type: object
+      required:
+        - score
+        - ruta
+        - es_phishing
+        - veredicto
+        - nivel_severidad
+        - resumen
+        - analisis_tecnico
+        - justificacion_veredicto
+        - indicadores
+        - banderas
+        - reglas_aplicadas
+        - verificaciones_incompletas
+        - autenticacion
+        - urls
+        - adjuntos
+        - version_pesos
+        - version_modelo
+      properties:
+        score:
+          type: number
+          description: Score final (0–100).
+        score_genetico:
+          type: number
+          description: Aporte del algoritmo genético (spec 007).
+        ruta:
+          $ref: '#/components/schemas/Ruta'
+        es_phishing:
+          type: boolean
+          description: Compatibilidad legado; el veredicto canónico es `veredicto`.
+        veredicto:
+          $ref: '#/components/schemas/Veredicto'
+        nivel_severidad:
+          $ref: '#/components/schemas/Severidad'
+        resumen:
+          type: string
+        analisis_tecnico:
+          type: string
+        justificacion_veredicto:
+          type: string
+        indicadores:
+          type: array
+          items:
+            $ref: '#/components/schemas/Indicador'
+        banderas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Banda'
+        reglas_aplicadas:
+          type: array
+          items:
+            type: string
+          description: 'Reglas duras aplicadas (R1–R5, spec 008).'
+        verificaciones_incompletas:
+          type: array
+          items:
+            type: string
+          description: |
+            Verificaciones obligatorias incompletas (ej. VT_NO_DISPONIBLE). Si hay alguna,
+            el veredicto es `revision_manual`, nunca `sin_indicadores` (spec 008 FR-003).
+        autenticacion:
+          $ref: '#/components/schemas/Autenticacion'
+        urls:
+          type: array
+          items:
+            $ref: '#/components/schemas/UrlAnalisis'
+        adjuntos:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdjuntoAnalisis'
+        version_pesos:
+          type: string
+        version_modelo:
+          type: string
+        ticket:
+          $ref: '#/components/schemas/Ticket'
+    Accion:
+      type: object
+      required: [simulada]
+      properties:
+        ejecutada:
+          type: [string, 'null']
+          description: 'Acción ejecutada (ej. etiqueta_phishing) o `null` si no aplica. [VERIFICAR] comportamiento en dry_run.'
+        simulada:
+          type: boolean
+          description: '`true` cuando `dry_run` estaba activo (por defecto).'
+    Analisis:
+      type: object
+      required: [id, origen, modo, creado_en, duracion_ms, correo, resultado, accion]
+      description: Documento `analyses` (§14.2). Nunca incluye HTML original ni contenido de adjuntos.
+      properties:
+        id:
+          type: string
+        origen:
+          $ref: '#/components/schemas/Origen'
+        modo:
+          $ref: '#/components/schemas/Modo'
+        creado_en:
+          type: string
+          format: date-time
+        duracion_ms:
+          type: integer
+        correo:
+          $ref: '#/components/schemas/Correo'
+        resultado:
+          $ref: '#/components/schemas/Resultado'
+        accion:
+          $ref: '#/components/schemas/Accion'
+        retroalimentacion:
+          oneOf:
+            - $ref: '#/components/schemas/Feedback'
+            - type: 'null'
+          description: 'Retroalimentación registrada, si existe (spec 011 FR-002).'
+    AnalisisPaginado:
+      type: object
+      required: [items, pagina, limite, total]
+      description: '[PROPUESTA] envoltorio de paginación (la spec no fija la forma exacta).'
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Analisis'
+        pagina:
+          type: integer
+        limite:
+          type: integer
+        total:
+          type: integer
+    AnalisisPegar:
+      type: object
+      required: [modo]
+      properties:
+        modo:
+          type: string
+          const: pegar
+        dry_run:
+          type: boolean
+          default: true
+          description: Simulacro por defecto (Art. V.2); la respuesta lo refleja en `accion.simulada`.
+        raw:
+          type: string
+          description: Correo MIME completo en base64 url-safe (opcional; con él se ignora el resto).
+        subject:
+          type: string
+        from:
+          type: string
+        to:
+          type: string
+        text:
+          type: string
+        html:
+          type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        message_id:
+          type: string
+      additionalProperties: false
+    AnalisisMuestra:
+      type: object
+      required: [modo, muestra]
+      properties:
+        modo:
+          type: string
+          const: muestra
+        dry_run:
+          type: boolean
+          default: true
+        muestra:
+          type: string
+          description: 'Id de la muestra de `GET /api/samples`. [PROPUESTA] nombre del campo.'
+      additionalProperties: false
+    AnalisisEml:
+      type: object
+      required: [archivo]
+      properties:
+        archivo:
+          type: string
+          format: binary
+          description: Archivo `.eml` (multipart). Más de 25 MB → 413.
+        dry_run:
+          type: string
+          description: 'Activo por defecto (`true`). En multipart llega como campo de texto.'
+    Muestra:
+      type: object
+      required: [id, nombre, descripcion, contenido]
+      description: '[PROPUESTA] forma de la muestra; verificar contra ESPECIFICACION_INTERFAZ_PHISHING.md v2.0.'
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        contenido:
+          type: string
+          description: Texto del correo de ejemplo (se envía en modo pegar o muestra).
+    Health:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [ok, error]
+    Integraciones:
+      type: object
+      description: Estado de integraciones. NUNCA revela claves ni URLs internas (AC-API-06).
+      required: [mongo, virustotal, modelo, gmail]
+      properties:
+        mongo:
+          type: object
+          required: [estado]
+          properties:
+            estado:
+              type: string
+              enum: [ok, error]
+        virustotal:
+          type: object
+          required: [estado, modo]
+          properties:
+            estado:
+              type: string
+              enum: [ok, error, degradado]
+            modo:
+              type: string
+              description: 'Tier de la API (ej. public).'
+            cuota_restante_estimada:
+              type: integer
+        modelo:
+          type: object
+          required: [estado]
+          properties:
+            estado:
+              type: string
+              enum: [ok, error, degradado]
+        gmail:
+          type: object
+          required: [estado]
+          properties:
+            estado:
+              type: string
+              enum: [ok, error, degradado]
+    MetricasDia:
+      type: object
+      required: [fecha, total]
+      properties:
+        fecha:
+          type: string
+          format: date
+          description: Día en America/Bogota; los días sin análisis aparecen con total 0.
+        total:
+          type: integer
+    IndicadorFrecuente:
+      type: object
+      required: [codigo, descripcion, frecuencia]
+      properties:
+        codigo:
+          type: string
+        descripcion:
+          type: string
+        frecuencia:
+          type: integer
+    Metricas:
+      type: object
+      required:
+        - rango
+        - total
+        - por_veredicto
+        - por_ruta
+        - pct_sin_modelo
+        - duracion_media_ms
+        - por_dia
+        - indicadores_frecuentes
+        - tasa_falsos_positivos
+        - consultas_vt
+        - aciertos_cache_pct
+        - revision_manual_total
+      description: '[PROPUESTA] nombres de campos de agregación; verificar contra las fórmulas del frontend v2.0 (AC-API-05).'
+      properties:
+        rango:
+          $ref: '#/components/schemas/Rango'
+        total:
+          type: integer
+        por_veredicto:
+          type: object
+          required: [sin_indicadores, sospechoso, malicioso, revision_manual]
+          additionalProperties:
+            type: integer
+        por_ruta:
+          type: object
+          additionalProperties:
+            type: integer
+        pct_sin_modelo:
+          type: number
+          description: Porcentaje de análisis resueltos sin modelo (heurística).
+        duracion_media_ms:
+          type: number
+        por_dia:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricasDia'
+        indicadores_frecuentes:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndicadorFrecuente'
+        tasa_falsos_positivos:
+          type: [number, 'null']
+          description: 'Nula (`null`) cuando no hay retroalimentación (AC-PER-05).'
+        consultas_vt:
+          type: integer
+        aciertos_cache_pct:
+          type: number
+        revision_manual_total:
+          type: integer
+          description: Análisis con veredicto `revision_manual` en el rango.
+    JobsGmail:
+      type: object
+      required: [ultimo_ciclo, pendientes, fallidos]
+      properties:
+        ultimo_ciclo:
+          type: [string, 'null']
+          format: date-time
+        pendientes:
+          type: integer
+        fallidos:
+          type: integer
+    FeedbackBody:
+      type: object
+      required: [feedback]
+      properties:
+        feedback:
+          $ref: '#/components/schemas/Feedback'
+      additionalProperties: false
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [codigo, mensaje]
+          properties:
+            codigo:
+              type: string
+              enum:
+                - NO_AUTENTICADO
+                - NO_ENCONTRADO
+                - ENTRADA_GRANDE
+                - VALIDACION
+                - DEMASIADAS_SOLICITUDES
+                - ERROR_INTERNO
+                - SERVICIO_NO_DISPONIBLE
+            mensaje:
+              type: string
+            detalles:
+              description: Detalle adicional (validación u operación).
+              oneOf:
+                - type: string
+                - type: array
+                  items: {}
+                - type: object
+
+  responses:
+    Error401:
+      description: Falta o es inválida la `X-API-Key`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: NO_AUTENTICADO
+              mensaje: Falta o es inválida la cabecera X-API-Key.
+              detalles: null
+    Error404:
+      description: Recurso inexistente.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: NO_ENCONTRADO
+              mensaje: Análisis no encontrado.
+              detalles: null
+    Error413:
+      description: Entrada mayor de 25 MB.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: ENTRADA_GRANDE
+              mensaje: El archivo excede el límite de 25 MB.
+              detalles: null
+    Error422:
+      description: Falla de validación de entrada.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: VALIDACION
+              mensaje: Entrada inválida.
+              detalles:
+                - campo: modo
+                  mensaje: valor no permitido
+    Error429:
+      description: Límite de tasa (30 análisis por minuto por clave e IP).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: DEMASIADAS_SOLICITUDES
+              mensaje: Se excedieron 30 análisis en un minuto.
+              detalles: null
+    Error500:
+      description: Error no controlado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: ERROR_INTERNO
+              mensaje: Error interno del servidor.
+              detalles: null
+    Error503:
+      description: Mongo no disponible.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: SERVICIO_NO_DISPONIBLE
+              mensaje: Base de datos no disponible.
+              detalles: null

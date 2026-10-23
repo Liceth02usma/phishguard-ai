@@ -585,7 +585,7 @@ PROBLEMA: PhishGuard solo tiene un poller de Gmail; el frontend no puede analiza
 OBJETIVO: una API REST que reemplace a la capa Express y al webhook de n8n, con el contrato del frontend.
 
 REQUISITOS FUNCIONALES
-RF1. Endpoints bajo `/api` con JSON UTF-8 y cabecera `X-API-Key` (salvo `health`): `GET /health`; `GET /integraciones`; `GET /samples`; `POST /analyses` (JSON en modos `pegar` y `muestra`, o multipart en modo `eml`; `dry_run` activo por defecto); `GET /analyses/{id}`; `GET /analyses` (filtros `veredicto`, `severidad`, `q`, `desde`, `hasta`, `orden`, `pagina`, `limite` ≤ 50); `GET /analyses/export.csv`; `PATCH /analyses/{id}/feedback`; `DELETE /analyses/{id}`; `GET /metrics/summary` con `rango` 7d, 30d o 90d; `GET /jobs/gmail`; `POST /jobs/gmail/run` (solo administrador).
+RF1. Endpoints bajo `/api` con JSON UTF-8 y cabecera `X-API-Key` (salvo `health`): `GET /health`; `GET /integraciones`; `GET /samples`; `POST /analyses` (JSON en modos `pegar` y `muestra`, o multipart en modo `eml`; `dry_run` activo por defecto); `GET /analyses/{id}`; `GET /analyses` (filtros `veredicto`, `severidad`, `q`, `desde`, `hasta`, `orden`, `pagina`, `limite` ≤ 50); `GET /analyses/export.csv`; `PATCH /analyses/{id}/feedback`; `DELETE /analyses/{id}`; `GET /metrics/summary` con `rango` 7d, 30d o 90d; `GET /jobs/gmail`; `POST /jobs/gmail/run` (misma `X-API-Key`; sin roles — constitución Art. V.8).
 RF2. Errores con la forma `{ "error": { "codigo", "mensaje", "detalles" } }`: 401, 404, 413 (más de 25 MB), 422, 429, 500, 503. Las caídas de VirusTotal, el modelo o RDAP NO son errores: devuelven 201 con `revision_manual` y `verificaciones_incompletas`.
 RF3. Validación estricta de toda entrada; límite de tasa (30 análisis por minuto por clave e IP); CORS solo para los orígenes configurados; cabeceras de seguridad.
 RF4. La exportación CSV protege contra inyección de fórmulas (prefijo `'` en celdas que empiezan con `=`, `+`, `-` o `@`), con UTF-8 con BOM y un máximo de 5 000 filas.
@@ -605,7 +605,7 @@ AC-API-08: el CSV de un análisis cuyo asunto es `=HYPERLINK("http://x")` escapa
 AC-API-09: el análisis 31 en un minuto devuelve 429.
 AC-API-10: una caída simulada de VirusTotal devuelve 201 con `revision_manual`.
 
-FUERA DE ALCANCE: interfaz web, autenticación con roles completos (decisión pendiente).
+FUERA DE ALCANCE: interfaz web. Los roles NO existen: una única `X-API-Key` para todos los endpoints autenticados (constitución Art. V.8).
 ```
 
 *Para `plan`:* FastAPI con Pydantic, inyección de dependencias para servicios simulables, `TestClient`; archivos de rutas separados por recurso (ninguno > 500 líneas).

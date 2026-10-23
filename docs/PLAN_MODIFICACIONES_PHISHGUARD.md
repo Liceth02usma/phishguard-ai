@@ -438,7 +438,7 @@ Se calcula el `score_final` (M10, entero 0 a 100). Orden de evaluación:
 |---|---|
 | Secretos | Solo variables de entorno o gestor de secretos; `.env`, `credenciales.json` y `token.json` **DEBEN** estar en `.gitignore`; auditoría del historial de git con `gitleaks` |
 | Gmail | OAuth con el mínimo de permisos. Para varios buzones corporativos, evaluar cuenta de servicio con delegación de dominio (Workspace) o notificaciones push (Pub/Sub); el flujo de escritorio con `token.json` queda solo para desarrollo **[DECISIÓN D4]** |
-| API | Autenticación por clave (`X-API-Key`) como mínimo, comparación en tiempo constante, rotación documentada. Para uso empresarial real: OAuth2/JWT con roles (analista, administrador) |
+| API | Autenticación por clave (`X-API-Key`) con comparación en tiempo constante y rotación documentada. **Sin roles ni permisos jerárquicos**: una única clave compartida para todos los endpoints autenticados (constitución Art. V.8) |
 | Validación | Pydantic en toda entrada; límites de tamaño de cuerpo (25 MB) y de campos |
 | CORS | Solo orígenes de la lista `CORS_ORIGINS` |
 | Limitación de tasa | Por clave y por IP (por ejemplo 30 análisis/min) con `slowapi` o equivalente |
@@ -568,7 +568,7 @@ Base `/api`, JSON UTF-8, cabecera `X-API-Key`. Mantiene el contrato del frontend
 | `DELETE /api/analyses/{id}` | Borrado a solicitud | Cumplimiento (M11) |
 | `GET /api/metrics/summary?rango=7d\|30d\|90d` | KPI del tablero | Agrega: `por_ruta`, `consultas_vt`, `aciertos_cache_pct`, `revision_manual` |
 | `GET /api/jobs/gmail` | Estado del poller (último ciclo, pendientes, fallidos) | Solo lectura |
-| `POST /api/jobs/gmail/run` | Forzar un ciclo del poller | Solo con rol administrador |
+| `POST /api/jobs/gmail/run` | Forzar un ciclo del poller | Misma `X-API-Key`; sin roles (constitución Art. V.8) |
 
 #### 14.4 Mapeo de errores
 
@@ -784,7 +784,7 @@ Estimación para un desarrollador intermedio en Python, que conoce el repositori
 | D2 | VirusTotal en producción | Pública (solo demo) / Premium | Premium para cualquier uso comercial | M06, costo |
 | D3 | Modelo del agente | Gemini 2.5 Flash Lite (actual) / otro de mayor capacidad | Evaluar con el conjunto de M13 y decidir con datos | M07 |
 | D4 | Acceso a Gmail | OAuth de escritorio / cuenta de servicio con delegación / notificaciones push | Cuenta de servicio para varios buzones; escritorio solo en desarrollo | M11, M12 |
-| D5 | Autenticación de la API | Clave estática / OAuth2-JWT con roles | Clave para la demo; OAuth2 para producción | M11 |
+| D5 | Autenticación de la API | Clave estática / OAuth2-JWT con roles | **Cerrada (constitución Art. V.8):** clave única `X-API-Key`, sin roles ni permisos jerárquicos | M11 |
 | D6 | Subida de adjuntos desconocidos a VT | Nunca / solo bajo aprobación | Nunca por defecto | M05 |
 
 ---

@@ -114,6 +114,8 @@ i) el cambio no incluye nada fuera del alcance de la spec.
 
 5.7 Se respeta el uso permitido de cada API externa (la API pública gratuita de VirusTotal no puede usarse en productos o servicios comerciales).
 
+5.8 La API se autentica con una única cabecera `X-API-Key` compartida. **No existen roles ni permisos jerárquicos** en el producto: todo endpoint autenticado tiene los mismos derechos (el único sin clave es `GET /health`). Un endpoint marcado en una spec como "solo administrador" DEBE interpretarse como "requiere `X-API-Key` válida"; NO DEBE implementarse lógica de roles.
+
 ## Simplicidad y Alcance
 
 ### ARTÍCULO VI — SIMPLICIDAD Y ALCANCE
@@ -134,7 +136,7 @@ i) el cambio no incluye nada fuera del alcance de la spec.
 
 7.3 Toda spec, plan y lista de tareas DEBE incluir una verificación de cumplimiento de esta constitución, y una violación bloquea el avance.
 
-**Version**: 2.0.0 | **Ratified**: 2026-10-22 | **Last Amended**: 2026-10-22
+**Version**: 2.1.0 | **Ratified**: 2026-10-22 | **Last Amended**: 2026-10-22
 
 ## Registro de cambios
 
@@ -143,3 +145,4 @@ i) el cambio no incluye nada fuera del alcance de la spec.
 | 1.0.0 | 2026-10-22 | Adopción inicial | Ratificación de la constitución con los Arts. 0–VII en DEBE/NO DEBE. |
 | 1.0.1 | 2026-10-22 | PATCH | Aclaración Art. II.2: las técnicas marcadas como obligatorias cuentan dentro del mínimo de 3 cuando apliquen. |
 | 2.0.0 | 2026-10-22 | MAJOR | Se elimina el requisito ambiguo "motor de decisión DEBE alcanzar 100 % de ramas" (Arts. II.3 y IV.1b). Se acota Art. V.1: "seguro" se prohíbe solo como veredicto final categórico, no en descripciones técnicas. |
+| 2.1.0 | 2026-10-22 | MINOR | Nuevo Art. V.8: la API usa una única `X-API-Key` y **no habrá roles ni permisos jerárquicos** (decisión explícita del usuario). Deroga lo que specs digan "solo administrador" (p. ej. spec 012, `POST /jobs/gmail/run`). |

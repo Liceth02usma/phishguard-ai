@@ -54,7 +54,7 @@ Una API REST bajo `/api` con JSON UTF-8 y cabecera `X-API-Key` expone endpoints 
 
 ### Functional Requirements
 
-- **FR-001** (RF1): Endpoints bajo `/api` con JSON UTF-8 y cabecera `X-API-Key` (salvo `health`): `GET /health`; `GET /integraciones`; `GET /samples`; `POST /analyses` (JSON en modos `pegar` y `muestra`, o multipart en modo `eml`; `dry_run` activo por defecto); `GET /analyses/{id}`; `GET /analyses` (filtros `veredicto`, `severidad`, `q`, `desde`, `hasta`, `orden`, `pagina`, `limite` ≤ 50); `GET /analyses/export.csv`; `PATCH /analyses/{id}/feedback`; `DELETE /analyses/{id}`; `GET /metrics/summary` con `rango` 7d, 30d o 90d; `GET /jobs/gmail`; `POST /jobs/gmail/run` (solo administrador).
+- **FR-001** (RF1): Endpoints bajo `/api` con JSON UTF-8 y cabecera `X-API-Key` (salvo `health`): `GET /health`; `GET /integraciones`; `GET /samples`; `POST /analyses` (JSON en modos `pegar` y `muestra`, o multipart en modo `eml`; `dry_run` activo por defecto); `GET /analyses/{id}`; `GET /analyses` (filtros `veredicto`, `severidad`, `q`, `desde`, `hasta`, `orden`, `pagina`, `limite` ≤ 50); `GET /analyses/export.csv`; `PATCH /analyses/{id}/feedback`; `DELETE /analyses/{id}`; `GET /metrics/summary` con `rango` 7d, 30d o 90d; `GET /jobs/gmail`; `POST /jobs/gmail/run` (misma `X-API-Key`; **sin roles** — constitución Art. V.8).
 - **FR-002** (RF2): Errores con la forma `{ "error": { "codigo", "mensaje", "detalles" } }`: 401, 404, 413 (más de 25 MB), 422, 429, 500, 503. Las caídas de VirusTotal, el modelo o RDAP NO son errores: devuelven 201 con `revision_manual` y `verificaciones_incompletas`.
 - **FR-003** (RF3): Validación estricta de toda entrada; límite de tasa (30 análisis por minuto por clave e IP); CORS solo para los orígenes configurados; cabeceras de seguridad.
 - **FR-004** (RF4): La exportación CSV protege contra inyección de fórmulas (prefijo `'` en celdas que empiezan con `=`, `+`, `-` o `@`), con UTF-8 con BOM y un máximo de 5 000 filas.
@@ -72,5 +72,5 @@ Una API REST bajo `/api` con JSON UTF-8 y cabecera `X-API-Key` expone endpoints 
 
 ## Assumptions
 
-- **Fuera de alcance**: interfaz web, autenticación con roles completos (decisión pendiente).
+- **Fuera de alcance**: interfaz web. *Autenticación por roles: **decidido** — no habrá roles; una única `X-API-Key` para todos los endpoints autenticados (constitución Art. V.8).*
 - **Hint para plan**: FastAPI con Pydantic, inyección de dependencias para servicios simulables, `TestClient`; archivos de rutas separados por recurso (ninguno > 500 líneas).

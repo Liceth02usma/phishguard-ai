@@ -222,3 +222,13 @@ def rdap_fijo() -> Any:
         return _Cliente()
 
     return crear
+
+
+@pytest.fixture(autouse=True)
+def _reiniciar_cache_rdap() -> Iterator[None]:
+    """Vacia la cache RDAP de proceso antes de cada prueba (Art. II.5: determinismo)."""
+    from src.level2_agent.banderas.rdap import reiniciar_cache_proceso
+
+    reiniciar_cache_proceso()
+    yield
+    reiniciar_cache_proceso()

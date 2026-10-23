@@ -87,6 +87,24 @@ class CacheRDAP:
     def guardar(self, dominio: str, fecha: datetime, ahora: datetime) -> None:
         self._entradas[dominio] = (fecha, ahora + timedelta(days=DIAS_CACHE_RDAP))
 
+    def limpiar(self) -> None:
+        """Vacia la cache (uso en pruebas para aislar estados, Art. II.5)."""
+        self._entradas.clear()
+
+
+_CACHE_PROCESO = CacheRDAP()
+"""Cache RDAP compartida entre invocaciones con TTL de 7 dias (plan: storage)."""
+
+
+def cache_proceso() -> CacheRDAP:
+    """Devuelve la cache de proceso: exitos RDAP persisten entre correos."""
+    return _CACHE_PROCESO
+
+
+def reiniciar_cache_proceso() -> None:
+    """Vacia la cache de proceso; las pruebas la llaman para mantener el determinismo."""
+    _CACHE_PROCESO.limpiar()
+
 
 def crear_consultor_rdap(
     cliente: ClienteRDAP, cache: CacheRDAP, ahora: datetime

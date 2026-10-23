@@ -13,6 +13,7 @@ import pytest
 from src.level2_agent.banderas.configuracion import ConfigBanderas
 from src.level2_agent.banderas.modelos import CATALOGO_BANDERAS, TOPE_PUNTOS_BANDERAS
 from src.level2_agent.banderas.motor import evaluar_banderas
+from src.level2_agent.banderas.rdap import reiniciar_cache_proceso
 
 AHORA = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 _AUTH = "mio.com"
@@ -149,6 +150,7 @@ def test_par_positivo_negativo(
     assert codigo in CATALOGO_BANDERAS  # el par existe en el catálogo
     pos, neg = ESCENARIOS[codigo]
     r_pos = _eval(pos, construir_correo, rdap_nulo, rdap_fijo)
+    reiniciar_cache_proceso()  # el par negativo no hereda la fecha cacheada
     r_neg = _eval(neg, construir_correo, rdap_nulo, rdap_fijo)
     assert codigo in {b.codigo for b in r_pos.banderas}, f"{codigo} debia activarse"
     assert codigo not in {b.codigo for b in r_neg.banderas}, f"{codigo} debia permanecer inactiva"

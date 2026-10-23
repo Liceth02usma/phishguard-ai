@@ -5,9 +5,17 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import pytest
 from src.level2_agent.banderas.configuracion import ConfigBanderas
+from src.level2_agent.banderas.modelos import TIMEOUT_RDAP_SEGUNDOS
 from src.level2_agent.banderas.motor import evaluar_banderas
-from src.level2_agent.banderas.rdap import CacheRDAP, crear_consultor_rdap
+from src.level2_agent.banderas.rdap import (
+    CacheRDAP,
+    RequestsRDAP,
+    cache_proceso,
+    crear_consultor_rdap,
+    reiniciar_cache_proceso,
+)
 
 AHORA = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 
@@ -53,7 +61,56 @@ def test_dominio_nuevo_valores_limite(construir_correo: Any, rdap_fijo: Any) -> 
     """29 dias -> nuevo; 30 y 31 dias -> no nuevo (boundary de 30, catalogo 5.1)."""
     config = ConfigBanderas(authserv_id="mio.com")
     for dias, esperado in ((29, True), (30, False), (31, False)):
+        reiniciar_cache_proceso()  # cada fecha se prueba con cache limpia
         cliente = rdap_fijo(AHORA - timedelta(days=dias))
         correo = construir_correo(cabeceras=[("From", "ana@dominio.com")])
         r = evaluar_banderas(correo, config=config, ahora=AHORA, cliente_rdap=cliente)
         assert any(b.codigo == "DOMINIO_NUEVO" for b in r.banderas) is esperado
+
+
+def test_cache_de_proceso_persiste_entre_invocaciones(construir_correo: Any) -> None:
+    """La cache de proceso evita repetir la consulta RDAP en correos sucesivos (plan: storage)."""
+    config = ConfigBanderas(authserv_id="mio.com")
+    cliente = _Contador(AHORA - timedelta(days=400))
+    correo = construir_correo(cabeceras=[("From", "ana@dominio-a.com")])
+    r1 = evaluar_banderas(correo, config=config, ahora=AHORA, cliente_rdap=cliente)
+    r2 = evaluar_banderas(correo, config=config, ahora=AHORA, cliente_rdap=cliente)
+    assert r1.puntos_totales == r2.puntos_totales
+    assert cliente.llamadas == 1  # la 2a invocacion golpea la cache compartida
+
+
+def test_cache_de_proceso_compartida_y_reinunciable() -> None:
+    """Hay una unica cache de proceso y ``reiniciar_cache_proceso`` la vacia (Art. II.5)."""
+    assert cache_proceso() is cache_proceso()
+    cache_proceso().guardar("x.com", AHORA - timedelta(days=1), AHORA)
+    reiniciar_cache_proceso()
+    assert cache_proceso().obtener("x.com", AHORA) is None
+
+
+class _RespuestaOk:
+    """Respuesta RDAP simulada con evento de registro."""
+
+    status_code = 200
+
+    @staticmethod
+    def json() -> dict[str, Any]:
+        return {
+            "events": [
+                {"eventAction": "registration", "eventDate": "2020-01-01T00:00:00Z"}
+            ]
+        }
+
+
+def test_requests_rdap_usa_timeout_en_cada_intento(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cada intento RDAP respeta TIMEOUT_RDAP_SEGUNDOS (edge: RDAP lento >5 s)."""
+    llamadas: list[dict[str, Any]] = []
+
+    def _get(url: str, **kwargs: Any) -> Any:
+        llamadas.append(kwargs)
+        return _RespuestaOk()
+
+    monkeypatch.setattr("src.level2_agent.banderas.rdap.requests.get", _get)
+    cliente = RequestsRDAP()
+    assert cliente.registrar_evento("ejemplo.com") is not None
+    assert llamadas, "no se realizo ninguna consulta"
+    assert all(kw.get("timeout") == TIMEOUT_RDAP_SEGUNDOS for kw in llamadas)

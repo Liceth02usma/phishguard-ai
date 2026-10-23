@@ -19,7 +19,7 @@ from .modelos import (
     ResultadoBanderas,
     orden_de_catalogo,
 )
-from .rdap import REGISTRO_RDAP, CacheRDAP, ClienteRDAP, RequestsRDAP, crear_consultor_rdap
+from .rdap import REGISTRO_RDAP, ClienteRDAP, RequestsRDAP, cache_proceso, crear_consultor_rdap
 
 REGISTRO: list[EvaluadorBandera] = [
     *REGISTRO_AUTENTICACION,
@@ -50,7 +50,7 @@ def evaluar_banderas(
     cfg = config if config is not None else ConfigBanderas()
     momento = ahora if ahora is not None else datetime.now(UTC)
     rdap: ClienteRDAP = cliente_rdap if cliente_rdap is not None else RequestsRDAP()
-    consultor = crear_consultor_rdap(rdap, CacheRDAP(), momento)
+    consultor = crear_consultor_rdap(rdap, cache_proceso(), momento)
     autenticacion = calcular_autenticacion(cfg, correo.cabeceras)
     ctx = ContextoEvaluacion(
         correo=correo,

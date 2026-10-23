@@ -176,3 +176,10 @@ Task: "rdap.py"
 - Commit after each family with Conventional Commits citing its AC (Art. I.5)
 - Stop at the US1 checkpoint to validate independently
 - Sin IA, sin red en pruebas, sin wiring a `agent.py` (research D11 — lo consumen specs 007/008)
+
+## Phase 5: Convergence
+
+- [X] T032 Alinear los exports del paquete `src/level2_agent/banderas/__init__.py` con el contrato: exportar el protocolo `ClienteRDAP` en `__all__` y revisar los extras (`calcular_puntos`, `ResultadoAutenticacion`) frente a la lista de contracts/banderas-api.md (contradicts)
+- [X] T033 Añadir `tests/unit/test_configuracion.py` sin red que cubra `ConfigBanderas.desde_entorno()` (defaults D9 de las 7 variables, listas separadas por coma en minúsculas) y que los formatos inválidos (esquema/URL, `/` en dominios, espacios en listas) lanzan `ConfiguracionError` (T006, plan Art. III.9) (partial)
+- [X] T034 Elevar la caché RDAP a nivel de proceso: singleton de `CacheRDAP` con TTL de 7 días compartido entre invocaciones de `evaluar_banderas` (plan: storage — "diccionario en memoria con TTL de 7 dias por proceso"), manteniendo la inyección de `ahora`/`cliente_rdap` y las pruebas sin red (FR-006) (partial)
+- [X] T035 Añadir prueba en `tests/unit/test_rdap.py` que monkeypatchee `requests.get` y verifique que `RequestsRDAP` usa `timeout=TIMEOUT_RDAP_SEGUNDOS` (5 s) en cada intento (edge case "RDAP lento", T022) (partial)

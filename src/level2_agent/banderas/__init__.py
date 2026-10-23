@@ -14,20 +14,19 @@ from .modelos import (
     TOPE_PUNTOS_BANDERAS,
     BanderaActivada,
     EstadosAutenticacion,
-    ResultadoAutenticacion,
     ResultadoBanderas,
 )
-from .motor import calcular_puntos, evaluar_banderas
+from .motor import evaluar_banderas
+from .rdap import ClienteRDAP
 
 __all__ = [
     "CATALOGO_BANDERAS",
     "TOPE_PUNTOS_BANDERAS",
     "BanderaActivada",
+    "ClienteRDAP",
     "ConfigBanderas",
     "ConfiguracionError",
     "EstadosAutenticacion",
-    "ResultadoAutenticacion",
     "ResultadoBanderas",
-    "calcular_puntos",
     "evaluar_banderas",
 ]

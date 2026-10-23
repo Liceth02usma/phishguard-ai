@@ -26,3 +26,6 @@ hypothesis==6.170.5
 google-api-python-client
 google-auth-oauthlib
 google-auth-httplib2
+
+# Banderas de cabeceras (spec 003)
+tldextract==5.4.0

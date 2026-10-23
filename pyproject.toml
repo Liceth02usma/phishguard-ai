@@ -62,9 +62,15 @@ disable_error_code = ["no-untyped-def", "attr-defined"]
 module = "src.*"
 ignore_errors = true
 
-# Spec 002: el código nuevo/modificado en src/ SÍ se type-checkea estricto
+# Spec 003: el codigo nuevo/modificado en src/ SÍ se type-checkea estricto
 # (Art. III.4/IV.1d). Los overrides posteriores ganan a los anteriores.
 [[tool.mypy.overrides]]
 module = ["src.level2_agent.models", "src.level2_agent.normalizacion", "src.level2_agent.normalizacion.*"]
+ignore_errors = false
+strict = true
+
+# Spec 003: el paquete banderas/ tambien se type-checkea estricto (Art. III.4).
+[[tool.mypy.overrides]]
+module = ["src.level2_agent.banderas", "src.level2_agent.banderas.*"]
 ignore_errors = false
 strict = true

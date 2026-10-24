@@ -57,7 +57,7 @@ def evaluar_banderas(
         config=cfg,
         ahora=momento,
         autenticacion=autenticacion,
-        consultar_fecha_registro=consultor,
+        consultar_edad=consultor,
     )
     activadas: list[BanderaActivada] = []
     for evaluador in REGISTRO:

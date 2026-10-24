@@ -183,3 +183,9 @@ Task: "rdap.py"
 - [X] T033 Añadir `tests/unit/test_configuracion.py` sin red que cubra `ConfigBanderas.desde_entorno()` (defaults D9 de las 7 variables, listas separadas por coma en minúsculas) y que los formatos inválidos (esquema/URL, `/` en dominios, espacios en listas) lanzan `ConfiguracionError` (T006, plan Art. III.9) (partial)
 - [X] T034 Elevar la caché RDAP a nivel de proceso: singleton de `CacheRDAP` con TTL de 7 días compartido entre invocaciones de `evaluar_banderas` (plan: storage — "diccionario en memoria con TTL de 7 dias por proceso"), manteniendo la inyección de `ahora`/`cliente_rdap` y las pruebas sin red (FR-006) (partial)
 - [X] T035 Añadir prueba en `tests/unit/test_rdap.py` que monkeypatchee `requests.get` y verifique que `RequestsRDAP` usa `timeout=TIMEOUT_RDAP_SEGUNDOS` (5 s) en cada intento (edge case "RDAP lento", T022) (partial)
+
+## Phase 6: Convergence
+
+- [X] T036 Añadir en `BanderaActivada` un validador de `detalle` que rechace direcciones de correo completas (Art. V.4) y una prueba que afirme la ausencia de PII sobre todos los detalles producidos por los fixtures (T005, data-model: Validaciones cruzadas #4) (missing)
+- [X] T037 Añadir propiedad con hypothesis de `puntos_totales == min(sum(puntos), 60)` sobre subconjuntos generados del catalogo 5.1 (data-model: Validaciones cruzadas #2, SC-002) (partial)
+- [X] T038 Alinear los objetos internos con el data-model: declarar `EdadDominio` (`fecha_registro: datetime | None`) y renombrar el campo del contexto a `consultar_edad`, manteniendo el comportamiento y las pruebas verdes (data-model: ContextoEvaluacion/EdadDominio, T022) (partial)

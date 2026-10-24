@@ -92,6 +92,7 @@ REDES_PRIVADAS: tuple[str, ...] = (
 """Redes privadas/reservadas que no deben aparecer en el primer salto externo (M04b)."""
 
 _RE_DIRECCION = re.compile(r"<([^>]+)>")
+_RE_CORREO_COMPLETO = re.compile(r"[^\s@<>\"']+@[^\s@<>\"']+\.[a-z]{2,}")
 
 
 def severidad_de(codigo: str) -> SEVERIDAD:
@@ -176,6 +177,14 @@ class BanderaActivada(BaseModel):
             raise ValueError(f"codigo fuera del catalogo 5.1: {v}")
         return v
 
+    @field_validator("detalle")
+    @classmethod
+    def _detalle_sin_pii(cls, v: str) -> str:
+        """El detalle describe dominios/evidencias; nunca direcciones completas (V.4)."""
+        if _RE_CORREO_COMPLETO.search(v):
+            raise ValueError("detalle con direccion de correo completa (Art. V.4)")
+        return v
+
 
 class EstadosAutenticacion(BaseModel):
     """Estados SPF/DKIM/DMARC derivados del Authentication-Results (FR-002)."""
@@ -226,6 +235,13 @@ class EvaluadorBandera(Protocol):
 
 
 @dataclass(frozen=True)
+class EdadDominio:
+    """Edad del dominio segun RDAP: ``None`` = desconocida o falla (data-model)."""
+
+    fecha_registro: datetime | None
+
+
+@dataclass(frozen=True)
 class ContextoEvaluacion:
     """Lo que toda estrategia necesita: correo, config, reloj, auth y puente RDAP."""
 
@@ -233,7 +249,7 @@ class ContextoEvaluacion:
     config: ConfigBanderas
     ahora: datetime
     autenticacion: ResultadoAutenticacion
-    consultar_fecha_registro: Callable[[str], datetime | None]
+    consultar_edad: Callable[[str], EdadDominio]
 
 
 def valores_de(campo: Sequence[str] | None) -> list[str]:

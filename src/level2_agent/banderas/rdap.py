@@ -20,6 +20,7 @@ from .modelos import (
     TIMEOUT_RDAP_SEGUNDOS,
     BanderaActivada,
     ContextoEvaluacion,
+    EdadDominio,
     EvaluadorBandera,
     dominio_de,
     fabricar_bandera,
@@ -108,22 +109,22 @@ def reiniciar_cache_proceso() -> None:
 
 def crear_consultor_rdap(
     cliente: ClienteRDAP, cache: CacheRDAP, ahora: datetime
-) -> Callable[[str], datetime | None]:
+) -> Callable[[str], EdadDominio]:
     """Cierra sobre cliente+cache+reloj: exitos 7 dias, fallos memoizados por invocacion."""
     fallos: set[str] = set()
 
-    def consultor(dominio: str) -> datetime | None:
+    def consultor(dominio: str) -> EdadDominio:
         if dominio in fallos:
-            return None
+            return EdadDominio(fecha_registro=None)
         golpe = cache.obtener(dominio, ahora)
         if golpe is not None:
-            return golpe
+            return EdadDominio(fecha_registro=golpe)
         fecha = cliente.registrar_evento(dominio)
         if fecha is not None:
             cache.guardar(dominio, fecha, ahora)
         else:
             fallos.add(dominio)
-        return fecha
+        return EdadDominio(fecha_registro=fecha)
 
     return consultor
 
@@ -142,7 +143,7 @@ class DominioNuevo:
         dominio = _dominio_remitente(ctx)
         if dominio is None:
             return None
-        fecha = ctx.consultar_fecha_registro(dominio)
+        fecha = ctx.consultar_edad(dominio).fecha_registro
         if fecha is None:
             return None
         edad = (ctx.ahora - fecha).total_seconds() / 86400
@@ -162,7 +163,7 @@ class DominioEdadDesconocida:
         dominio = _dominio_remitente(ctx)
         if dominio is None:
             return None
-        if ctx.consultar_fecha_registro(dominio) is not None:
+        if ctx.consultar_edad(dominio).fecha_registro is not None:
             return None
         return fabricar_bandera(
             self.codigo, f"RDAP no devolvio fecha de registro de '{dominio}'"

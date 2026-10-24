@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from src.level2_agent.banderas.configuracion import ConfigBanderas
-from src.level2_agent.banderas.modelos import TIMEOUT_RDAP_SEGUNDOS
+from src.level2_agent.banderas.modelos import TIMEOUT_RDAP_SEGUNDOS, EdadDominio
 from src.level2_agent.banderas.motor import evaluar_banderas
 from src.level2_agent.banderas.rdap import (
     CacheRDAP,
@@ -35,8 +35,8 @@ class _Contador:
 def test_cache_hit_no_repide_consulta() -> None:
     cliente = _Contador(AHORA - timedelta(days=10))
     consultor = crear_consultor_rdap(cliente, CacheRDAP(), AHORA)
-    assert consultor("x.com") == cliente.fecha
-    assert consultor("x.com") == cliente.fecha
+    assert consultor("x.com").fecha_registro == cliente.fecha
+    assert consultor("x.com").fecha_registro == cliente.fecha
     assert cliente.llamadas == 1  # cacheado (TTL 7 dias)
 
 
@@ -52,9 +52,17 @@ def test_cache_expira_tras_ttl() -> None:
 def test_falla_no_lanza_y_no_cachea() -> None:
     cliente = _Contador(None)  # RDAP caido
     consultor = crear_consultor_rdap(cliente, CacheRDAP(), AHORA)
-    assert consultor("x.com") is None
-    assert consultor("x.com") is None  # memoizado en la misma invocacion
+    assert consultor("x.com").fecha_registro is None
+    assert consultor("x.com").fecha_registro is None  # memoizado en la misma invocacion
     assert cliente.llamadas == 1
+
+
+def test_consultor_devuelve_edad_dominio() -> None:
+    """El consultor envuelve la fecha en EdadDominio (data-model: EdadDominio)."""
+    cliente = _Contador(AHORA - timedelta(days=10))
+    resultado = crear_consultor_rdap(cliente, CacheRDAP(), AHORA)("x.com")
+    assert isinstance(resultado, EdadDominio)
+    assert resultado.fecha_registro == cliente.fecha
 
 
 def test_dominio_nuevo_valores_limite(construir_correo: Any, rdap_fijo: Any) -> None:

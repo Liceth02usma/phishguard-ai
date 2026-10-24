@@ -6,8 +6,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 from src.level2_agent.banderas.configuracion import ConfigBanderas
 from src.level2_agent.banderas.modelos import (
+    CATALOGO_BANDERAS,
     TOPE_PUNTOS_BANDERAS,
     BanderaActivada,
     fabricar_bandera,
@@ -64,3 +67,14 @@ def test_integracion_puntos_nunca_superan_60(construir_correo: Any, rdap_nulo: A
     assert len(r.banderas) >= 3  # varias banderas activas
     assert r.puntos_totales <= TOPE_PUNTOS_BANDERAS
     assert r.puntos_totales == calcular_puntos(r.banderas)
+
+
+@pytest.mark.ac("AC-HDR-05")
+@given(codigos=st.lists(st.sampled_from(sorted(CATALOGO_BANDERAS)), max_size=16))
+def test_propiedad_tope_sobre_subconjuntos(codigos: list[str]) -> None:
+    """Cualquier subconjunto del catalogo cumple puntos_totales == min(suma, 60) (data-model)."""
+    banderas = [fabricar_bandera(c, "x") for c in codigos]
+    assert calcular_puntos(banderas) == min(
+        sum(b.puntos for b in banderas), TOPE_PUNTOS_BANDERAS
+    )
+    assert 0 <= calcular_puntos(banderas) <= TOPE_PUNTOS_BANDERAS

@@ -7,6 +7,7 @@ con el conjunto exacto de banderas esperadas y sus puntos (test independiente).
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 from typing import Any
 
 import pytest
@@ -178,3 +179,29 @@ def test_correo_canonico_conjunto_exacto_y_puntos(construir_correo: Any, rdap_nu
         "DOMINIO_EDAD_DESCONOCIDA",  # RDAP caido (0)
     }
     assert r.puntos_totales == sum(CATALOGO_BANDERAS[c][1] for c in codigos) == TOPE_PUNTOS_BANDERAS
+
+
+@pytest.mark.ac("AC-HDR-01")
+@pytest.mark.parametrize(
+    ("delta", "esperada"),
+    [
+        (timedelta(hours=23), False),  # 23 h futuras < 24 h -> no anomala
+        (timedelta(hours=25), True),  # 25 h futuras > 24 h -> anomala
+        (timedelta(days=-364), False),  # 364 dias pasados < 1 anio -> no anomala
+        (timedelta(days=-366), True),  # 366 dias pasados > 1 anio -> anomala
+    ],
+)
+def test_fecha_anomala_valores_limite(
+    delta: timedelta, esperada: bool, construir_correo: Any, rdap_nulo: Any
+) -> None:
+    """research D10.1: los bordes exactos de FECHA_ANOMALA (23/25 h, 364/366 días)."""
+    reiniciar_cache_proceso()
+    futuro = delta > timedelta(0)
+    fecha = (AHORA + delta) if futuro else (AHORA - abs(delta))
+    config = ConfigBanderas(authserv_id=_AUTH)
+    correo = construir_correo(
+        cabeceras=[("From", "a@empresa.com"), ("Date", format_datetime(fecha))]
+    )
+    r = evaluar_banderas(correo, config=config, ahora=AHORA, cliente_rdap=rdap_nulo)
+    activada = "FECHA_ANOMALA" in {b.codigo for b in r.banderas}
+    assert activada is esperada, f"delta={delta} debia dar FECHA_ANOMALA={esperada}"

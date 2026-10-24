@@ -8,6 +8,7 @@ dentro de la misma invocacion (decision D7).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
@@ -47,10 +48,21 @@ def _parsear_fecha(cru: object) -> datetime | None:
     return fecha
 
 
+_RE_DOMINIO_URL = re.compile(
+    r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$"
+)
+"""Dominio estricto (labels RFC 1035, sin esquema, sin ``/``, sin espacios) — D7/V.5."""
+
+
 class RequestsRDAP:
     """Cliente RDAP real sobre HTTP; cualquier fallo se traduce en ``None``."""
 
     def registrar_evento(self, dominio: str) -> datetime | None:
+        # Saneado anti-inyeccion (plan Constitution Check V.5, research D7): un
+        # dominio malformado jamas se interpola en la URL y jamas lanza excepcion.
+        dominio = dominio.strip().lower()
+        if not _RE_DOMINIO_URL.fullmatch(dominio):
+            return None
         for plantilla in (
             "https://rdap.org/domain/{d}",
             "https://rdap.verisign.com/com/v1/domain/{d}",

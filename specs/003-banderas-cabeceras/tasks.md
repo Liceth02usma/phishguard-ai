@@ -189,3 +189,8 @@ Task: "rdap.py"
 - [X] T036 Añadir en `BanderaActivada` un validador de `detalle` que rechace direcciones de correo completas (Art. V.4) y una prueba que afirme la ausencia de PII sobre todos los detalles producidos por los fixtures (T005, data-model: Validaciones cruzadas #4) (missing)
 - [X] T037 Añadir propiedad con hypothesis de `puntos_totales == min(sum(puntos), 60)` sobre subconjuntos generados del catalogo 5.1 (data-model: Validaciones cruzadas #2, SC-002) (partial)
 - [X] T038 Alinear los objetos internos con el data-model: declarar `EdadDominio` (`fecha_registro: datetime | None`) y renombrar el campo del contexto a `consultar_edad`, manteniendo el comportamiento y las pruebas verdes (data-model: ContextoEvaluacion/EdadDominio, T022) (partial)
+
+## Phase 7: Convergence
+
+- [X] T039 Sanea el dominio con regex estricta de labels (sin esquema, sin `/`, sin espacios) antes de componer la URL en `RequestsRDAP.registrar_evento`, y anade una prueba con dominio malformado que confirme que no se inyecta en el path ni lanza excepcion (plan: Constitution Check V.5, research D7) (contradicts)
+- [X] T040 Cobre en pruebas los valores limite exactos declarados en research D10.1 que faltan: `FECHA_ANOMALA` a 23 h y 25 h en el futuro y a 364 y 366 dias en el pasado, y TTL de la cache en 6d23h y 7d (research D10.1) (partial)

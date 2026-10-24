@@ -57,6 +57,35 @@ def test_falla_no_lanza_y_no_cachea() -> None:
     assert cliente.llamadas == 1
 
 
+def test_cache_ttl_valores_limite() -> None:
+    """D10.1: a 6d23h hay golpe de cache; a los 7 dias exactos expira y reconsulta."""
+    cliente = _Contador(AHORA - timedelta(days=400))
+    cache = CacheRDAP()
+    crear_consultor_rdap(cliente, cache, AHORA)("x.com")
+    golpe = crear_consultor_rdap(cliente, cache, AHORA + timedelta(hours=167))
+    assert golpe("x.com").fecha_registro == cliente.fecha
+    assert cliente.llamadas == 1  # 6d23h < TTL 7d -> hit
+    reconsulta = crear_consultor_rdap(cliente, cache, AHORA + timedelta(days=7))
+    reconsulta("x.com")
+    assert cliente.llamadas == 2  # 7d exactos -> expira (ahora >= expira)
+
+
+def test_dominio_malformado_no_compone_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D7/V.5: dominio con ruta, esquema, query o espacios nunca llega a requests."""
+    llamadas: list[str] = []
+
+    def _get(url: str, **kwargs: Any) -> Any:
+        llamadas.append(url)
+        raise AssertionError("no debe consultarse con un dominio malformado")
+
+    monkeypatch.setattr("src.level2_agent.banderas.rdap.requests.get", _get)
+    cliente = RequestsRDAP()
+    malformados = ("evil.com/../ruta", "https://x.com", "dominio con espacio", "x.com?q=1", "")
+    for dominio in malformados:
+        assert cliente.registrar_evento(dominio) is None  # sin excepcion (AC-HDR-06)
+    assert llamadas == []  # ninguna URL compuesta con dominio malformado
+
+
 def test_consultor_devuelve_edad_dominio() -> None:
     """El consultor envuelve la fecha en EdadDominio (data-model: EdadDominio)."""
     cliente = _Contador(AHORA - timedelta(days=10))

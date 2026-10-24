@@ -104,7 +104,7 @@ description: "Task list for AnÃ¡lisis y ExpansiÃ³n de URLs"
 - [X] T033 Run `python scripts/check_trazabilidad_ac.py --spec specs/004-analisis-urls/spec.md` and confirm exit 0 (every AC-URL-NN has a marked test â€” Art. II.6)
 - [X] T034 Run `python -m pytest tests/unit/ --cov=src/level2_agent/analisis_urls --cov-branch --cov-fail-under=80` and confirm â‰¥ 80% lines and branches on the new package (Art. II.3)
 - [X] T035 Run `python scripts/verify.py` and confirm exit 0 (ruff, `mypy --strict`, tests with coverage, `check_longitud_archivos` â‰¤500, `check_nombre_rama` against `feature/analisis-urls`; no thresholds lowered). Confirm `python tests/test_pipeline.py` still PASS (regression, research D10.6)
-- [ ] T036 Produce the final report (Art. IV.3): command + test result, coverage % (lines and branches), list of the 7 ACs with their test file, and the `[VERIFICAR]` list V1â€“V7 from quickstart.md (umbral subdominios, TLD/tracking defaults, acortadores reales, TOCTOU, tope 60 pts con 003, peor caso 200 acortadores); run quickstart.md steps E1â€“E7
+- [X] T036 Produce the final report (Art. IV.3): command + test result, coverage % (lines and branches), list of the 7 ACs with their test file, and the `[VERIFICAR]` list V1â€“V7 from quickstart.md (umbral subdominios, TLD/tracking defaults, acortadores reales, TOCTOU, tope 60 pts con 003, peor caso 200 acortadores); run quickstart.md steps E1â€“E7
 
 ---
 

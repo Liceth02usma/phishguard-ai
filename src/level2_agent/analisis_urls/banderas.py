@@ -15,9 +15,9 @@ from urllib.parse import parse_qsl, urlsplit
 
 from src.level2_agent.analisis_urls.configuracion import ConfigURLs
 from src.level2_agent.analisis_urls.modelos import (
+    DIAS_DOMINIO_NUEVO,
     UMBRAL_URL_LARGA,
     CodigoBandaURL,
-    DIAS_DOMINIO_NUEVO,
     ResultadoExpansion,
     UrlAnalizada,
 )
@@ -78,7 +78,9 @@ def _punycode(url: UrlAnalizada, config: ConfigURLs, expansion: ResultadoExpansi
     return "xn--" in url.host
 
 
-def _tld_riesgo(url: UrlAnalizada, config: ConfigURLs, expansion: ResultadoExpansion | None) -> bool:
+def _tld_riesgo(
+    url: UrlAnalizada, config: ConfigURLs, expansion: ResultadoExpansion | None
+) -> bool:
     """TLD en la lista configurable de riesgo (FR-002)."""
     del expansion
     if "." not in url.host:

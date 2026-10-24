@@ -15,7 +15,6 @@ from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Protocol, runtime_checkable
 
 import requests
-
 from src.level2_agent.analisis_urls.modelos import TIMEOUT_URL_SEGUNDOS
 
 Reloj = Callable[[], float]

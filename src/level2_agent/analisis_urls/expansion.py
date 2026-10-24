@@ -13,7 +13,6 @@ from __future__ import annotations
 from urllib.parse import urljoin, urlsplit
 
 import requests
-
 from src.level2_agent.analisis_urls.configuracion import ConfigURLs
 from src.level2_agent.analisis_urls.modelos import ResultadoExpansion
 from src.level2_agent.analisis_urls.puertos import DependenciasURLs

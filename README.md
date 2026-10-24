@@ -153,6 +153,12 @@ phishguard-ai/
 │   │   │   ├── extraccion.py   # URLs + adjuntos (SHA-256)
 │   │   │   ├── limites.py      # 5 límites duros + banderas
 │   │   │   └── enmascarado.py  # PII → vista para terceros
+│   │   ├── analisis_urls/      # Análisis y expansión de URLs (spec 004, M04b)
+│   │   │   ├── motor.py        # analizar_urls (API pública, sin wiring aún)
+│   │   │   ├── expansion.py    # Acortadores con validación SSRF por salto
+│   │   │   ├── banderas.py     # Catálogo 5.2 (13 códigos de URL)
+│   │   │   ├── ssrf.py         # Redes FR-004 + is_global por hop
+│   │   │   └── configuracion.py # Listas configurables vía .env
 │   │   └── tools/
 │   │       ├── __init__.py     # Retriever RAG vectorial
 │   │       ├── ip_reputation.py # Consulta VirusTotal
@@ -195,6 +201,23 @@ Para correos en zona gris (score 30-75):
 3. Identifica disparadores psicológicos
 4. Opcional: consulta VirusTotal para IPs/URLs
 5. Opcional: crea ticket en Jira si confirma phishing
+
+### Análisis de URLs (`analisis_urls/`, spec 004)
+
+Paquete determinista y aislado del pipeline (la integración llega en specs posteriores) que:
+
+- **Extrae** URLs de `href`, `src`, `action`, de los pares (texto del enlace → destino) y del texto plano.
+- **Normaliza y deduplica** (host en minúsculas, sin fragmento ni tracking) conservando la original.
+- **Sanea** los 7 parámetros sensibles de FR-007 (`token`, `key`, `session`, `email`, `user`, `code`, `password`) y valores con forma de correo **antes** de cualquier consulta externa.
+- **Expande acortadores** con validación SSRF en **cada salto** (IPs privadas/loopback/metadata bloqueadas), tope de 5 saltos o 5 s (reloj inyectado) y **sin descargar cuerpos** (`HEAD` + `stream`).
+- **Bandea** con el catálogo 5.2 (13 códigos con severidad/puntos literales) vía `ResultadoURLs`.
+
+Configuración opcional en `.env`: `ACORTADORES`, `TLD_RIESGO`, `PARAMETROS_TRACKING`, `PARAMETROS_SENSIBLES`, `URL_SUBDOMINIOS_MAX`.
+
+```powershell
+# Pruebas del módulo (85 pruebas, marcador ac + propiedades hypothesis)
+python -m pytest tests/unit/ -k "ac_url or banderas_url or expansion or ssrf or sanitizacion"
+```
 
 ### Acciones automáticas
 

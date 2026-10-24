@@ -125,8 +125,12 @@ class UrlAnalizada(BaseModel):
     esquema: str = Field(default="", description="Esquema detectado (http/https/otro)")
     texto_mostrado: str = Field(default="", description="Texto del enlace, si vino de uno")
     es_acortadora: bool = Field(default=False, description="Host en la lista configurable (FR-003)")
-    url_saneada: str = Field(default="", description="Única forma que cruza a consulta externa (FR-007)")
-    expansion: ResultadoExpansion | None = Field(default=None, description="Resultado, si se evaluó")
+    url_saneada: str = Field(
+        default="", description="Única forma que cruza a consulta externa (FR-007)"
+    )
+    expansion: ResultadoExpansion | None = Field(
+        default=None, description="Resultado, si se evaluó"
+    )
     codigos: list[CodigoBandaURL] = Field(default_factory=list, description="Códigos activados")
 
 

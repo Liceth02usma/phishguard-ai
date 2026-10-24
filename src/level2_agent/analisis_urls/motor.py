@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from src.level2_agent.analisis_urls.banderas import evaluar_banderas_url
 from src.level2_agent.analisis_urls.configuracion import ConfigURLs
-from src.level2_agent.analisis_urls.extraccion import extraer_candidatas
 from src.level2_agent.analisis_urls.expansion import expandir_acortador
+from src.level2_agent.analisis_urls.extraccion import extraer_candidatas
 from src.level2_agent.analisis_urls.modelos import (
     CodigoBandaURL,
     EstadisticasURLs,
@@ -38,7 +38,9 @@ def _dominio_base(host: str) -> str:
     return ".".join(etiquetas[-2:])
 
 
-def _edad_del_dominio(host: str, deps: DependenciasURLs, cache: dict[str, int | None]) -> int | None:
+def _edad_del_dominio(
+    host: str, deps: DependenciasURLs, cache: dict[str, int | None]
+) -> int | None:
     """Edad vía RDAP, consultada UNA vez por dominio y degradando a None (D5)."""
     if not host:
         return None

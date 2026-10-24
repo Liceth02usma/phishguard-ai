@@ -12,7 +12,6 @@ from collections.abc import Mapping
 from typing import Any, Final
 
 from pydantic import BaseModel, Field
-
 from src.level2_agent.analisis_urls.modelos import TIMEOUT_URL_SEGUNDOS, TOPE_SALTOS
 from src.level3_logic.genetic_logic import SHORTENERS
 

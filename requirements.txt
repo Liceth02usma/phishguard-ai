@@ -26,3 +26,8 @@ hypothesis==6.170.5
 google-api-python-client
 google-auth-oauthlib
 google-auth-httplib2
+
+# Analisis de adjuntos (spec 005)
+filetype==1.2.0
+oletools==0.60.2
+pypdf==6.21.2

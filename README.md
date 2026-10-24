@@ -153,6 +153,17 @@ phishguard-ai/
 │   │   │   ├── extraccion.py   # URLs + adjuntos (SHA-256)
 │   │   │   ├── limites.py      # 5 límites duros + banderas
 │   │   │   └── enmascarado.py  # PII → vista para terceros
+│   │   ├── adjuntos/            # Análisis estático de adjuntos (spec 005, M05)
+│   │   │   ├── __init__.py     # API pública: analizar_adjunto
+│   │   │   ├── modelos.py      # AnalisisAdjunto + catálogo 5.3
+│   │   │   ├── configuracion.py # ConfigAdjuntos desde env
+│   │   │   ├── hashes.py       # SHA-256/MD5/SHA-1
+│   │   │   ├── firma.py        # Magic bytes vs extensión
+│   │   │   ├── extensiones.py  # Riesgo/doble/HTML
+│   │   │   ├── office.py       # Macros/enlaces (oletools)
+│   │   │   ├── pdf.py          # /OpenAction /JS /Launch
+│   │   │   ├── comprimidos.py  # Zip con límites
+│   │   │   └── motor.py        # Registry de detectores
 │   │   └── tools/
 │   │       ├── __init__.py     # Retriever RAG vectorial
 │   │       ├── ip_reputation.py # Consulta VirusTotal

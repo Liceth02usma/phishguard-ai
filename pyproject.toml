@@ -80,3 +80,14 @@ strict = true
 module = ["src.level2_agent.analisis_urls", "src.level2_agent.analisis_urls.*"]
 ignore_errors = false
 strict = true
+
+# Spec 005: el paquete adjuntos/ se type-checkea estricto (Art. III.4/IV.1d).
+[[tool.mypy.overrides]]
+module = ["src.level2_agent.adjuntos", "src.level2_agent.adjuntos.*"]
+ignore_errors = false
+strict = true
+
+# Dependencias de spec 005 sin stubs de tipo (Art. III.8: deps fijadas).
+[[tool.mypy.overrides]]
+module = ["filetype.*", "oletools.*", "oletools.olevba.*"]
+ignore_missing_imports = true

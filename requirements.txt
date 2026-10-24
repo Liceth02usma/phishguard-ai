@@ -29,3 +29,8 @@ google-auth-httplib2
 
 # Banderas de cabeceras (spec 003)
 tldextract==5.4.0
+
+# Analisis de adjuntos (spec 005)
+filetype==1.2.0
+oletools==0.60.2
+pypdf==6.21.2

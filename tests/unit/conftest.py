@@ -269,3 +269,109 @@ def email_enlaces_canonico(fabrica_email_urls: Callable[..., Any]) -> Any:
     )
     texto = "visita https://banco.com y tambien https://bit.ly/3xAb?utm_source=mail"
     return fabrica_email_urls(html=html, texto=texto)
+# --- Fábrica de adjuntos para la spec 005 (AC-ADJ-01..06, Art. II.5, SC-003) ---
+# Todo se genera en memoria (io.BytesIO/zipfile): NUNCA se escribe a disco
+# con el nombre original (FR-006, SC-003).
+
+
+@pytest.fixture
+def fabrica_pdf() -> Callable[..., bytes]:
+    """Devuelve una función que construye PDFs mínimos en memoria.
+
+    generar(catalog_extra="") -> bytes: PDF con extras en el catálogo /Root.
+    generar(truncar=True) -> bytes: PDF truncado (inválido).
+    """
+    def generar(*, catalog_extra: str = "", truncar: bool = False) -> bytes:
+        obj1 = f"1 0 obj\n<< /Type /Catalog /Pages 2 0 R {catalog_extra} >>\nendobj\n"
+        obj2 = "2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n"
+        header = b"%PDF-1.4\n"
+        body = (obj1 + obj2).encode("latin-1")
+        xref_offset = len(header) + len(body)
+        xref = (
+            f"xref\n0 3\n"
+            f"0000000000 65535 f \n"
+            f"{len(header):010d} 00000 n \n"
+            f"{len(header) + len(obj1.encode('latin-1')):010d} 00000 n \n"
+            f"trailer\n<< /Root 1 0 R /Size 3 >>\n"
+            f"startxref\n{xref_offset}\n%%EOF\n"
+        ).encode("latin-1")
+        data = header + body + xref
+        if truncar:
+            return data[: len(data) // 2]
+        return data
+
+    return generar
+
+
+@pytest.fixture
+def fabrica_docx() -> Callable[..., bytes]:
+    """Devuelve una función que construye docx (OOXML zip) mínimos en memoria.
+
+    generar(archivos_extra={}) -> bytes: docx con archivos adicionales dentro.
+    """
+    import io as _io
+    import zipfile
+
+    def generar(archivos_extra: dict[str, bytes] | None = None) -> bytes:
+        buf = _io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(
+                "[Content_Types].xml",
+                b'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                b'<Default Extension="xml" ContentType="text/xml"/></Types>',
+            )
+            zf.writestr(
+                "_rels/.rels",
+                b'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                b'<Relationship Id="r1"'
+                b' Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"'
+                b' Target="word/document.xml"/></Relationships>',
+            )
+            zf.writestr(
+                "word/document.xml",
+                b'<document xmlns="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><body/></document>',
+            )
+            if archivos_extra:
+                for nombre, contenido in archivos_extra.items():
+                    zf.writestr(nombre, contenido)
+        return buf.getvalue()
+
+    return generar
+
+
+@pytest.fixture
+def fabrica_zip() -> Callable[..., bytes]:
+    """Devuelve una función que construye zips en memoria parametrizable.
+
+    generar(n_entradas=1, contenido=None, cifrado=False, nivel=zipfile.ZIP_DEFLATED)
+    -> bytes.
+    """
+    import io as _io
+    import zipfile
+
+    def generar(
+        *,
+        n_entradas: int = 1,
+        contenido: bytes | None = None,
+        cifrado: bool = False,
+        nivel: int = zipfile.ZIP_DEFLATED,
+    ) -> bytes:
+        if contenido is None:
+            contenido = b"datos de prueba\n" * 10
+        buf = _io.BytesIO()
+        with zipfile.ZipFile(buf, "w", nivel) as zf:
+            for i in range(n_entradas):
+                info = zipfile.ZipInfo(f"entrada_{i}.txt")
+                info.compress_type = nivel
+                if cifrado:
+                    info.flag_bits |= 0x1  # bit de cifrado (FR-005)
+                zf.writestr(info, contenido)
+        return buf.getvalue()
+
+    return generar
+
+
+@pytest.fixture
+def exe_mz() -> bytes:
+    """Bytes de un ejecutable PE mínimo (firma MZ) para pruebas de tipo real."""
+    return b"MZ" + b"\x00" * 100 + b"PE\x00\x00" + b"\x00" * 50

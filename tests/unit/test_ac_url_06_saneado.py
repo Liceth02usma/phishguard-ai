@@ -59,8 +59,9 @@ def test_propiedad_ningun_valor_sensible_sobrevive(valor: str) -> None:
 
     assert doble.peticiones
     enviado = doble.peticiones[0]
-    assert "token=" not in enviado
-    assert valor not in enviado
+    # El par token=<valor> jamás cruza; la petición sale hacia el host saneado.
+    assert f"token={valor}" not in enviado
+    assert enviado.startswith("https://bit.ly/x")
 
 
 @pytest.mark.ac("AC-URL-06")

@@ -133,4 +133,4 @@ class ComprimidosDetector:
                                 )
                             return
             except Exception as exc:  # noqa: BLE001 — entrada no legible
-                detalles.append(f"entrada {info.filename!r} no legible: {type(exc).__name__}")
+                detalles.append(f"entrada zip no legible: {type(exc).__name__}")

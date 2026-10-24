@@ -182,3 +182,14 @@ Task: "comprimidos.py"
 - Commit after each family with Conventional Commits citing its AC (Art. I.5)
 - Stop at the US1 checkpoint to validate independently
 - Sin IA, sin red, sin escritura a disco, sin ejecución (AC-ADJ-05/FR-006), sin wiring a `agent.py` ni cambios en `models.py` (research D15 — lo consumen specs 006/008)
+
+---
+
+## Phase 5: Convergence
+
+**Purpose**: cerrar brechas detectadas por `/speckit.converge` tras la implementación inicial.
+
+- [x] T035 Add tests for `ConfigAdjuntos.desde_entorno()` and `ConfiguracionError` in `tests/unit/test_configuracion_adjuntos.py`: valid env vars → correct `ConfigAdjuntos`; invalid integer (`ADJ_LIMITE_ENTRADAS_ZIP=abc`) → `ConfiguracionError`; limit ≤ 0 → `ConfiguracionError`; empty env vars → defaults from M05; `ConfiguracionError` is an `Exception` subclass per plan D10, Art. III.9 (partial)
+- [x] T036 Fix `src/level2_agent/adjuntos/comprimidos.py:136` to not use `info.filename` in `detalles` — replace `f"entrada {info.filename!r} no legible"` with `"entrada zip no legible"` per research D13, Art. V.4 (detalles must not contain filenames) (contradicts)
+- [x] T037 Add test in `tests/unit/test_ac_adj_06_entradas_hostiles.py` asserting no `AnalisisAdjunto.detalles` or `BanderaAdjunto.detalle` contains the attachment's full `nombre` across all fixtures per data-model.md "Validaciones cruzadas" #4 (missing)
+- [x] T038 Add targeted tests for uncovered branches: `comprimidos.py:125-136` (streaming read `except` with a corrupt-but-openable zip entry), `office.py:50-53` (olevba `analyze_macros` loop with a stub returning external-link indicator), `firma.py:49-73` (`_familia` branches for office-ole, imagen, html families) per Art. II.3 (partial)

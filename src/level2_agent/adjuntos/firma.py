@@ -47,7 +47,7 @@ def _familia(extension: str) -> str:
         return "ejecutable"
     if ext in {"png", "jpg", "jpeg", "gif", "bmp"}:
         return "imagen"
-    if ext in {"doc", "xls", "ppt"}:
+    if ext in {"doc", "xls", "ppt", "ole2"}:
         return "office-ole"
     if ext in {"html", "htm", "svg"}:
         return "html"

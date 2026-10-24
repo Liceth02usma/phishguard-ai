@@ -14,6 +14,8 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from src.level2_agent.adjuntos import analizar_adjunto
 
+from vector_eicar import generar_eicar
+
 
 @pytest.mark.ac("AC-ADJ-06")
 def test_payload_vacio_no_lanza() -> None:
@@ -74,3 +76,21 @@ def test_determinista(payload: bytes) -> None:
     r1 = analizar_adjunto("test.bin", "application/octet-stream", payload)
     r2 = analizar_adjunto("test.bin", "application/octet-stream", payload)
     assert r1 == r2
+
+
+@pytest.mark.ac("AC-ADJ-06")
+def test_detalles_sin_nombres_completos() -> None:
+    """Los detalles y BanderaAdjunto.detalle no contienen el nombre del adjunto (D13, V.4)."""
+    casos = [
+        ("factura.pdf.exe", "application/octet-stream", b"MZ" + b"\x00" * 100),
+        ("doc.pdf", "application/pdf", b"%PDF-1.4\n%%EOF\n"),
+        ("data.zip", "application/zip", b"PK\x03\x04" + b"\x00" * 50),
+        ("secret.txt", "text/plain", b"datos"),
+        ("eicar.com", "application/octet-stream", generar_eicar()),
+    ]
+    for nombre, tipo, payload in casos:
+        r = analizar_adjunto(nombre, tipo, payload)
+        for b in r.banderas:
+            assert nombre not in b.detalle, f"detalle contiene el nombre: {b.detalle}"
+        for d in r.detalles:
+            assert nombre not in d, f"detalles contiene el nombre: {d}"

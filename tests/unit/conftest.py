@@ -162,3 +162,40 @@ def fabrica_html_oculto() -> Callable[[str], str]:
         )
 
     return construir
+
+
+# --- Fábrica de correos con URLs para la spec 004 (AC-URL-01..07, Art. II.5) ---
+
+
+@pytest.fixture
+def fabrica_email_urls() -> Callable[..., Any]:
+    """Devuelve una función que construye EmailData con HTML/texto parametrizable.
+
+    Cubre (T008): `href`, `src`, `action`, pares texto→destino, URLs en
+    texto plano, tracking, duplicados y variantes malformadas/oversized.
+    """
+
+    def construir(
+        *, html: str = "", texto: str = "", texto_limpio: str | None = None
+    ) -> Any:
+        from src.level2_agent.models import EmailData
+
+        limpio = texto if texto_limpio is None else texto_limpio
+        return EmailData(htmlBody=html, textBody=texto, texto_limpio=limpio)
+
+    return construir
+
+
+@pytest.fixture
+def email_enlaces_canonico(fabrica_email_urls: Callable[..., Any]) -> Any:
+    """Correo canónico de phishing: enlace engañoso, acortador con PII e IP interna."""
+    html = (
+        "<html><body>"
+        '<a href="http://evil.example/login">https://banco.com</a>'
+        '<a href="https://bit.ly/3xAb?utm_source=mail&token=abc123'
+        '&email=j.perez@banco.com">Premio</a>'
+        '<img src="http://192.168.1.10/logo.png"/>'
+        "</body></html>"
+    )
+    texto = "visita https://banco.com y tambien https://bit.ly/3xAb?utm_source=mail"
+    return fabrica_email_urls(html=html, texto=texto)

@@ -68,3 +68,9 @@ ignore_errors = true
 module = ["src.level2_agent.models", "src.level2_agent.normalizacion", "src.level2_agent.normalizacion.*"]
 ignore_errors = false
 strict = true
+
+# Spec 004: el paquete analisis_urls SÍ se type-checkea estricto (Art. III.4).
+[[tool.mypy.overrides]]
+module = ["src.level2_agent.analisis_urls", "src.level2_agent.analisis_urls.*"]
+ignore_errors = false
+strict = true

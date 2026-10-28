@@ -219,3 +219,21 @@ Evidencia ejecutada el 2026-03-16 sobre `feature/integracion-virustotal`
 
 **Resultado**: SIN violaciones constitucionales; la spec 006 queda lista para
 revisión/PR (Art. I.6). Fusión a `main` solo por instrucción explícita del equipo.
+
+---
+
+## Phase 5: Convergence
+
+**Purpose**: Remaining gaps found by `/speckit.converge` (2026-03-16) after assessing the
+implementation against `spec.md`, `plan.md`, `contracts/virustotal-api.md`, `research.md`
+and the constitution v2.1.0. Evidence of the assessment: `scripts/verify.py` exit 0,
+442 unit tests green (84 in the VT `-k` filter), trazability 10/10 AC, no wiring into
+`agent.py`/Gmail (`git diff main` empty), package = exactly 11 modules + 3 recorded
+fixtures in `tests/unit/respuestas_vt/` (no unrequested code).
+
+- [ ] T039 [US1] Add unit coverage for the `es_riesgosa` parameter of `consultar_url`
+  (contract §1, FR-006): assert that marking a URL as risky only emits the priority-2
+  detail (debug path) without altering the verdict, the flags, or the budget consumption.
+  Implemented in `src/level2_agent/virustotal/cliente.py` (`consultar_url`) with zero
+  tests (`git grep es_riesgosa -- tests/` → no matches); no production-code change
+  expected (partial)

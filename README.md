@@ -180,6 +180,19 @@ phishguard-ai/
 │   │   │   ├── pdf.py          # /OpenAction /JS /Launch
 │   │   │   ├── comprimidos.py  # Zip con límites
 │   │   │   └── motor.py        # Registry de detectores
+│   │   ├── virustotal/          # Cliente VirusTotal API v3 (spec 006, M06)
+│   │   │   ├── __init__.py     # API pública: consultar_archivo/consultar_url/...
+│   │   │   ├── cliente.py      # Orquestador (flujo FR-001..009, síncrono)
+│   │   │   ├── clasificacion.py # Tabla M06.4 (3/3/20, umbrales configurables)
+│   │   │   ├── limitador.py    # Cubeta 4/min (VT_RPM) con reloj inyectado
+│   │   │   ├── resiliencia.py  # Reintentos 429/5xx + cortacircuitos 5/60 s
+│   │   │   ├── cache.py        # vt_cache TTL 7d/24h/1h + vt_contador (Mongo)
+│   │   │   ├── presupuesto.py  # 10 consultas por correo (FR-006)
+│   │   │   ├── envios.py       # POST /files y /urls tras flags (default off)
+│   │   │   ├── identificadores.py # SHA-256, URL→B64, dominio, IP
+│   │   │   ├── configuracion.py # ConfigVT desde env
+│   │   │   ├── puertos.py      # Protocolos + adapter httpx
+│   │   │   └── modelos.py      # ResultadoVT + catálogo VT (5 códigos)
 │   │   └── tools/
 │   │       ├── __init__.py     # Retriever RAG vectorial
 │   │       ├── ip_reputation.py # Consulta VirusTotal
@@ -265,6 +278,35 @@ resultado.puntos_totales                         # suma con tope de 60
 
 Cinco familias de estrategias (Strategy + Registry): autenticación (`Authentication-Results` solo si `authserv-id` coincide), identidad (Reply-To/Return-Path/Message-ID y nombre visible), dominios (distancia de edición ≤2, homoglifos, punycode), contexto (`Received`/`Date` y Reply-To gratuito) y RDAP (edad del dominio con caché de 7 días). La severidad y los puntos salen **únicamente** del catálogo 5.1 (`modelos.py`), nunca se inventan en las estrategias. Configuración por variable de entorno: ver `.env.example` y `specs/003-banderas-cabeceras/`.
 
+### Cliente VirusTotal (`virustotal/`, spec 006)
+
+Paquete determinista y **sin wiring al pipeline** (lo consumirán las specs 007/008) que consulta la API v3 de VirusTotal sobre cuatro indicadores — archivos por SHA-256, URLs por identificador Base64 url-safe sin relleno (saneado delegando en la spec 004), dominios e IPs — y devuelve un `ResultadoVT` clasificado con la tabla M06.4 (umbrales 3/3/20 configurables):
+
+- **Cuota pública** por defecto: cubeta de 4 solicitudes/minuto + tope diario de 500 (contador persistente en Mongo, sobrevive reinicios). El modo `premium` solo eleva los topes si se configuran `VT_RPM`/`VT_DAILY` explícitamente.
+- **Resiliencia**: hasta 3 reintentos en 429/5xx con espera exponencial 1/2/4 s + jitter y `Retry-After` respetado; cortacircuitos que abre 60 s tras 5 fallos consecutivos — el análisis siempre continúa con bandera `VT_NO_DISPONIBLE`.
+- **Caché** de veredictos reales por tipo: archivos 7 días; URLs/dominios/IPs 24 h; desconocidos (404) 1 hora. Los fallos transitorios **nunca** se cachean.
+- **Presupuesto** de 10 consultas externas por correo (`presupuesto_nuevo` compartido por el consumidor); al agotarse, `VT_PRESUPUESTO_AGOTADO` sin llamada.
+- **Subida/envío opt-in**: `subir_archivo` (`POST /files`) y `enviar_url_desconocida` (`POST /urls`) no emiten ninguna petición mientras `VT_UPLOAD_UNKNOWN`/`VT_SUBMIT_UNKNOWN_URLS` estén apagados.
+
+```python
+from src.level2_agent.virustotal import ConfigVT, consultar_archivo, presupuesto_nuevo
+
+config = ConfigVT.desde_entorno()               # VT_API_KEY, VT_TIER, ...
+presupuesto = presupuesto_nuevo(config)          # 10 consultas por correo
+resultado = consultar_archivo(sha256, config=config, presupuesto=presupuesto)
+resultado.clasificacion                          # maliciosa / sospechosa / limpia / desconocida
+resultado.banderas                               # p.ej. VT_ADJ_SOSPECHOSO (catálogo VT)
+```
+
+Variables de entorno (ver `.env.example`): `VT_API_KEY`, `VT_TIER` (`public`|`premium`), `VT_RPM`, `VT_DAILY`, `VT_MAX_POR_CORREO`, `VT_UPLOAD_UNKNOWN`, `VT_SUBMIT_UNKNOWN_URLS`, `VT_UMBRAL_MALICIOSA`, `VT_UMBRAL_SOSPECHOSA`, `VT_UMBRAL_LIMPIA`.
+
+> **Aviso de licencia (uso público/demostración)**: la API pública de VirusTotal tiene cuotas estrictas y **prohibición de uso comercial**; el modo `public` (4/min, 500/día) es solo para demostración y pruebas. Cualquier uso productivo requiere una clave premium propia y la responsabilidad de cumplir los términos del servicio.
+
+```powershell
+# Pruebas del módulo (84 con este filtro — 98 en total con test_configuracion.py; sin red real)
+python -m pytest tests/unit/ -k "vt or clasificacion or limitador or cache_presupuesto"
+```
+
 ## Dependencias principales
 
 - **LangChain / LangGraph** — Framework de agentes y cadenas LLM
@@ -274,6 +316,7 @@ Cinco familias de estrategias (Strategy + Registry): autenticación (`Authentica
 - **Pydantic** — Modelos de datos con validación
 - **Hypothesis** — Pruebas basadas en propiedades (enmascarado PII, spec 002)
 - **tldextract** — Dominio registrable vía PSL embebida (banderas, spec 003)
+- **httpx** — Cliente HTTP asíncrono (cliente VirusTotal, spec 006)
 
 Ver `requirements.txt` para la lista completa.
 

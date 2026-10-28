@@ -18,6 +18,13 @@
 
 **Depende de**: 04, 05.
 
+## Clarifications
+
+### Session 2026-10-27
+
+- Q: ¿Qué resultados deben guardarse en la caché de MongoDB (vt_cache), considerando que un fallo transitorio (cortacircuitos abierto, cuota diaria agotada o presupuesto agotado) no es un veredicto real del archivo? → A: Solo veredictos reales (`maliciosa`/`sospechosa`/`limpia` y 404→`desconocida`); los resultados transitorios nunca se cachean, garantizando recuperación inmediata al volver el servicio.
+- Q: Cuando `VT_TIER=premium` pero `VT_RPM` y `VT_DAILY` no están definidos en el entorno, ¿qué límite debe aplicar el cliente? → A: Los mismos valores por defecto que en modo `public` (4/min y 500/día); el modo premium solo eleva el límite cuando se configura explícitamente.
+
 ## User Scenarios & Testing
 
 ### User Story 1 - Cliente VirusTotal con cuota, caché, reintentos y cortacircuitos (Priority: P1)
@@ -46,18 +53,19 @@ Un cliente consulta hashes (SHA-256), URLs (Base64 url-safe sin relleno), domini
 - 404 → `desconocida` (no `limpia`).
 - `malicious` 2 vs 3; `suspicious` 2 vs 3; `harmless+undetected` 19 vs 20.
 - 429 con y sin `Retry-After`.
-- 5 fallos consecutivos (cortacircuito abre).
+- 5 fallos consecutivos (cortacircuitos abre).
 - Presupuesto exactamente en 10 y en 11.
+- Fallo transitorio (cortacircuitos abierto, cuota diaria o presupuesto agotado) → no se cachea; la siguiente consulta re-evalúa desde cero.
 
 ## Requirements
 
 ### Functional Requirements
 
 - **FR-001** (RF1): Consultas: archivo por SHA-256, URL (identificador en Base64 url-safe sin relleno), dominio e IP. Un 404 significa "desconocido", nunca "limpio".
-- **FR-002** (RF2): Modo configurable `VT_TIER` = `public` (4 solicitudes por minuto y 500 por día, contador persistente) o `premium` (límite configurable). El modo `public` es solo para demostración: su uso en productos o servicios comerciales no está permitido por los términos de VirusTotal.
+- **FR-002** (RF2): Modo configurable `VT_TIER` = `public` (4 solicitudes por minuto y 500 por día, contador persistente) o `premium` (límite configurable vía `VT_RPM` y `VT_DAILY`). Si en modo `premium` alguna de estas variables no está definida, se aplica el mismo valor por defecto que en modo `public` (4/min y 500/día): el modo premium solo eleva el límite cuando se configura explícitamente. El modo `public` es solo para demostración: su uso en productos o servicios comerciales no está permitido por los términos de VirusTotal.
 - **FR-003** (RF3): Reintentos: en 429 y 5xx hasta 3 con espera exponencial más aleatoriedad, respetando `Retry-After`; sin reintento en otros 4xx.
 - **FR-004** (RF4): Cortacircuitos: tras 5 fallos consecutivos se abre 60 s; durante ese tiempo no se llama y se activa `VT_NO_DISPONIBLE`.
-- **FR-005** (RF5): Caché en MongoDB con TTL: archivos 7 días; URLs, dominios e IPs 24 horas; "desconocido" 1 hora.
+- **FR-005** (RF5): Caché en MongoDB con TTL: archivos 7 días; URLs, dominios e IPs 24 horas; "desconocido" 1 hora. Solo se cachean veredictos reales (clasificaciones y el 404); los resultados transitorios (cortacircuitos abierto, cuota diaria agotada o presupuesto agotado) no se guardan, por lo que la recuperación del servicio es inmediata.
 - **FR-006** (RF6): Presupuesto máximo de 10 consultas externas por correo (`VT_MAX_POR_CORREO`) con prioridad: hashes, URLs con banderas de riesgo, dominios, IPs, demás URLs; lo que excede activa `VT_PRESUPUESTO_AGOTADO`.
 - **FR-007** (RF7): Clasificación a partir de `last_analysis_stats`: `maliciosa` si `malicious >= 3`; `sospechosa` si `malicious` es 1 o 2, o `suspicious >= 3`; `limpia` si `malicious = 0`, `suspicious <= 2` y `harmless + undetected >= 20`; `desconocida` en cualquier otro caso. "Limpia" nunca reduce el puntaje. Los umbrales son configurables.
 - **FR-008** (RF8): Subida de archivos (`POST /files`) y envío de URLs desconocidas desactivados por defecto (`VT_UPLOAD_UNKNOWN=false`, `VT_SUBMIT_UNKNOWN_URLS=false`). Lo consultado a VirusTotal puede quedar visible para su comunidad: no se envían datos personales.

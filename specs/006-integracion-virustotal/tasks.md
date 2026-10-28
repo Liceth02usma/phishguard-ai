@@ -24,10 +24,10 @@ Single project: `src/`, `tests/`, `scripts/` at repository root (plan.md Structu
 
 **Purpose**: Dependencies and quality-gate wiring for the new package.
 
-- [ ] T001 Add `httpx==<pin exacta verificada en el entorno>` to `requirements.txt` (única dependencia nueva — research D2), run `pip install -r requirements.txt`, and confirm `python -c "import httpx; print(httpx.__version__)"` succeeds; run `pip-audit -r requirements.txt` and record no high/critical vulnerabilities (Art. III.8)
-- [ ] T002 [P] Extend `scripts/verify.py` additively: add `src/level2_agent/virustotal` to `RUTAS_CALIDAD_SRC` and to the `pytest --cov=` target so coverage/lint gates measure the new package (same mechanism as specs 002–005 — Art. II.3); do NOT lower any threshold
-- [ ] T003 [P] Extend `pyproject.toml` additively: strict mypy override for `virustotal.*` (mirror of `analisis_urls.*`/`adjuntos.*`); keep `fail_under` unchanged
-- [ ] T004 [P] Extend `.env.example` additively with the literal env vars of the plan table 14.x — `VT_TIER=public`, `VT_RPM=4`, `VT_DAILY=500`, `VT_MAX_POR_CORREO=10`, `VT_UPLOAD_UNKNOWN=false`, `VT_SUBMIT_UNKNOWN_URLS=false`, `VT_UMBRAL_MALICIOSA=3`, `VT_UMBRAL_SOSPECHOSA=3`, `VT_UMBRAL_LIMPIA=20` — plus a comment that `VT_API_KEY` goes ONLY here (never in the file committed) and that `public` is demo-only (Art. V.7); NO real secrets
+- [X] T001 Add `httpx==0.28.1` to `requirements.txt` (única dependencia nueva — research D2), run `pip install -r requirements.txt`, and confirm `python -c "import httpx; print(httpx.__version__)"` succeeds; run `pip-audit -r requirements.txt` and record no high/critical vulnerabilities (Art. III.8)
+- [X] T002 [P] Extend `scripts/verify.py` additively: add `src/level2_agent/virustotal` to `RUTAS_CALIDAD_SRC` and to the `pytest --cov=` target so coverage/lint gates measure the new package (same mechanism as specs 002–005 — Art. II.3); do NOT lower any threshold
+- [X] T003 [P] Extend `pyproject.toml` additively: strict mypy override for `virustotal.*` (mirror of `analisis_urls.*`/`adjuntos.*`); keep `fail_under` unchanged
+- [X] T004 [P] Extend `.env.example` additively with the literal env vars of the plan table 14.x — `VT_TIER=public`, `VT_RPM=4`, `VT_DAILY=500`, `VT_MAX_POR_CORREO=10`, `VT_UPLOAD_UNKNOWN=false`, `VT_SUBMIT_UNKNOWN_URLS=false`, `VT_UMBRAL_MALICIOSA=3`, `VT_UMBRAL_SOSPECHOSA=3`, `VT_UMBRAL_LIMPIA=20` — plus a comment that `VT_API_KEY` goes ONLY here (never in the file committed) and that `public` is demo-only (Art. V.7); NO real secrets
 
 ---
 

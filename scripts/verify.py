@@ -140,6 +140,7 @@ def _compuerta_cobertura() -> ResultadoCompuerta:
             "--cov=src/level2_agent/banderas",
             "--cov=src/level2_agent/analisis_urls",
             "--cov=src/level2_agent/adjuntos",
+            "--cov=src/level2_agent/virustotal",
             "--cov-branch",
             f"--cov-fail-under={umbral_efectivo}",
             "-q",
@@ -208,6 +209,7 @@ RUTAS_CALIDAD_SRC: tuple[str, ...] = (
     "src/level2_agent/banderas",
     "src/level2_agent/analisis_urls",
     "src/level2_agent/adjuntos",
+    "src/level2_agent/virustotal",
 )
 
 

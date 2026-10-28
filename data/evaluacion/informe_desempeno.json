@@ -1,0 +1,30 @@
+{
+  "version_pesos": "pesos_v1",
+  "version_modelo": "models/gemini-2.5-flash-lite",
+  "version_conjunto": "conjunto_v1",
+  "n_total": 300,
+  "n_phishing": 150,
+  "n_legitimos": 150,
+  "matriz_confusion": {
+    "tp": 150,
+    "fp": 150,
+    "tn": 0,
+    "fn": 0
+  },
+  "recall_pct": 100.0,
+  "tasa_fp_pct": 100.0,
+  "tiempo_medio_ms": 1.855,
+  "inyeccion": {
+    "pares": 10,
+    "veredictos_estables": 10,
+    "detalles": []
+  },
+  "metas": {
+    "recall_min": 95.0,
+    "tasa_fp_max": 2.0,
+    "recall_ok": true,
+    "tasa_fp_ok": false
+  },
+  "estado": "falla",
+  "duracion_total_ms": 556.435
+}

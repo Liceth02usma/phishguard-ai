@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -25,14 +25,15 @@ RESPUESTAS_DIR = Path(__file__).parent / "respuestas_vt"
 
 def cargar_respuesta(nombre: str) -> dict[str, Any]:
     """Carga una respuesta VT grabada y anonimizada (D12)."""
-    return json.loads((RESPUESTAS_DIR / nombre).read_text(encoding="utf-8"))
+    contenido: dict[str, Any] = json.loads((RESPUESTAS_DIR / nombre).read_text(encoding="utf-8"))
+    return contenido
 
 
 class RelojFalso:
     """Reloj UTC avanzable: `avanzar(segundos)` para valores límite (II.5)."""
 
     def __init__(self, inicio: datetime | None = None) -> None:
-        self._ahora = inicio or datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        self._ahora = inicio or datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
     def __call__(self) -> datetime:
         return self._ahora
@@ -106,17 +107,26 @@ class ClienteDoble:
         """Cuenta peticiones registradas que coinciden con (metodo, path)."""
         return sum(1 for p in self.peticiones if p.metodo == metodo.upper() and p.path == path)
 
+    def olvidar(self, metodo: str, path: str) -> None:
+        """Elimina la ruta: las próximas peticiones a ella vuelven a fallar."""
+        self._rutas.pop((metodo.upper(), path), None)
+
     def _manejador(self, solicitud: httpx.Request) -> httpx.Response:
         """Devuelve la respuesta dictada o falla si la petición no existe."""
         metodo = solicitud.method.upper()
         path = solicitud.url.path
         if path.startswith("/api/v3"):
             path = path[len("/api/v3") :]
+        consulta = solicitud.url.query
         self.peticiones.append(
             PeticionRegistrada(
                 metodo=metodo,
                 path=path,
-                query=solicitud.url.query,
+                query=(
+                    consulta
+                    if isinstance(consulta, str)
+                    else consulta.decode("utf-8", "replace")
+                ),
                 cuerpo=solicitud.content,
             )
         )
@@ -142,9 +152,12 @@ def deps_prueba(
     """Arma `DependenciasVT` con dobles deterministas (Art. II.5).
 
     Por defecto usa caché/contador en memoria del paquete `virustotal` y
-    jitter fijo 0.0; todo sobreescribible por prueba.
+    jitter fijo 0.0; todo sobreescribible por prueba. Cada llamada crea un
+    `limitador` y un `cortacircuito` nuevos ligados al reloj falso dado.
     """
     from src.level2_agent.virustotal.cache import CacheMemoria, ContadorMemoria
+    from src.level2_agent.virustotal.limitador import Limitador
+    from src.level2_agent.virustotal.resiliencia import Cortacircuito
 
     reloj_efectivo = reloj if reloj is not None else RelojFalso()
     dormir_efectivo = dormir if dormir is not None else DormirFalso(reloj_efectivo)
@@ -155,4 +168,6 @@ def deps_prueba(
         reloj=reloj_efectivo,
         dormir=dormir_efectivo,
         jitter=jitter_cero,
+        limitador=Limitador(reloj=reloj_efectivo, dormir=dormir_efectivo),
+        cortacircuito=Cortacircuito(reloj=reloj_efectivo),
     )

@@ -9,7 +9,8 @@ from urllib.parse import parse_qsl, urlsplit
 import pytest
 from src.level2_agent.virustotal import ConfigVT, consultar_archivo, consultar_url
 from src.level2_agent.virustotal.identificadores import id_url_base64
-from tests.unit.dobles_vt import (
+
+from dobles_vt import (
     ClienteDoble,
     RespuestaDoble,
     cargar_respuesta,
@@ -64,7 +65,11 @@ def test_transporte_recibe_url_saneada() -> None:
 def test_clave_ausente_en_logs(caplog: pytest.LogCaptureFixture) -> None:
     """La clave nunca aparece en logs, mensajes ni errores (FR-009, AC-VT-07)."""
     cliente = ClienteDoble(
-        rutas={("GET", f"/files/{SHA}"): [RespuestaDoble(200, cargar_respuesta("archivo_maliciosa.json"))]}
+        rutas={
+            ("GET", f"/files/{SHA}"): [
+                RespuestaDoble(200, cargar_respuesta("archivo_maliciosa.json"))
+            ]
+        }
     )
     with caplog.at_level(logging.DEBUG):
         consultar_archivo(SHA, config=CONFIG, deps=deps_prueba(cliente))

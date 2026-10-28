@@ -5,7 +5,8 @@ from __future__ import annotations
 import pytest
 from src.level2_agent.virustotal import ConfigVT, DependenciasVT, consultar_archivo
 from src.level2_agent.virustotal.cache import CacheMemoria
-from tests.unit.dobles_vt import (
+
+from dobles_vt import (
     ClienteDoble,
     RelojFalso,
     RespuestaDoble,
@@ -73,7 +74,9 @@ def test_un_exito_entre_fallos_reinicia_el_conteo() -> None:
     exito = consultar_archivo(SHA, config=CONFIG, deps=deps)
     assert exito.clasificacion == "maliciosa"
 
-    # Se vacía la caché para que las próximas consultas vuelvan a red (mismo circuito).
+    # Se olvida la ruta y se vacía la caché: las próximas consultas fallan otra
+    # vez contra el MISMO cortacircuitos (el éxito no lo abrió, solo reinició).
+    cliente.olvidar("GET", RUTA)
     cache.limpiar()
     for _ in range(4):
         consultar_archivo(SHA, config=CONFIG, deps=deps)

@@ -14,20 +14,19 @@ INSTANTE = "2026-01-01T12:00:00+00:00"
 
 @pytest.mark.ac("AC-VT-06")
 @pytest.mark.parametrize(
-    ("tipo", "es_desconocido", "esperado_dias"),
+    ("tipo", "es_desconocido", "esperado"),
     [
-        ("archivo", False, 7),
-        ("url", False, 1),
-        ("dominio", False, 1),
-        ("ip", False, 1),
-        ("archivo", True, 0),  # desconocido → 1 hora = 0 días
-        ("url", True, 0),
+        ("archivo", False, timedelta(days=7)),
+        ("url", False, timedelta(days=1)),
+        ("dominio", False, timedelta(days=1)),
+        ("ip", False, timedelta(days=1)),
+        ("archivo", True, timedelta(hours=1)),  # desconocido → 1 hora
+        ("url", True, timedelta(hours=1)),
     ],
 )
-def test_ttl_por_tipo(tipo: str, es_desconocido: bool, esperado_dias: int) -> None:
+def test_ttl_por_tipo(tipo: str, es_desconocido: bool, esperado: timedelta) -> None:
     """TTL literal: archivo 7 d; URL/dominio/IP 24 h; desconocido 1 h (FR-005)."""
-    ttl = ttl_para(tipo, es_desconocido=es_desconocido)
-    assert ttl == timedelta(days=esperado_dias)
+    assert ttl_para(tipo, es_desconocido=es_desconocido) == esperado
 
 
 @pytest.mark.ac("AC-VT-06")

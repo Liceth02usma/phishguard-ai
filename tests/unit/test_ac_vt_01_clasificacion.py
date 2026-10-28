@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 from src.level2_agent.virustotal import ConfigVT, consultar_archivo
-from tests.unit.dobles_vt import ClienteDoble, RespuestaDoble, cargar_respuesta, deps_prueba
+
+from dobles_vt import ClienteDoble, RespuestaDoble, cargar_respuesta, deps_prueba
 
 SHA = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
 
@@ -45,7 +46,7 @@ def test_hash_404_desconocida_nunca_limpia() -> None:
     )
     resultado = consultar_archivo(SHA, config=_config(), deps=deps_prueba(cliente))
     assert resultado.clasificacion == "desconocida"
-    assert resultado.clasificacion != "limpia"
+    # El 404 jamás se reporta como «limpia»: el veredicto queda en desconocida (FR-001).
     assert resultado.stats is None
     assert [b.codigo for b in resultado.banderas] == ["VT_DESCONOCIDO"]
     assert cliente.contar("GET", f"/files/{SHA}") == 1

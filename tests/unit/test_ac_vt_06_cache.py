@@ -7,7 +7,8 @@ from src.level2_agent.virustotal import ConfigVT, consultar_archivo, consultar_u
 from src.level2_agent.virustotal.cache import CacheMemoria
 from src.level2_agent.virustotal.identificadores import id_url_base64
 from src.level2_agent.virustotal.modelos import EntradaCache
-from tests.unit.dobles_vt import (
+
+from dobles_vt import (
     ClienteDoble,
     RelojFalso,
     RespuestaDoble,

@@ -11,8 +11,8 @@ from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Protocol
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Protocol
 
 import httpx
 from src.level2_agent.virustotal.modelos import (
@@ -21,6 +21,10 @@ from src.level2_agent.virustotal.modelos import (
     TIMEOUT_LECTURA_SEGUNDOS,
     EntradaCache,
 )
+
+if TYPE_CHECKING:
+    from src.level2_agent.virustotal.limitador import Limitador
+    from src.level2_agent.virustotal.resiliencia import Cortacircuito
 
 
 @dataclass(frozen=True)
@@ -136,10 +140,24 @@ class ClienteHttpx:
         )
         return _a_respuesta(respuesta)
 
+    async def cerrar(self) -> None:
+        """Cierra el subyacente `httpx.AsyncClient` (uso cuando lo crea el cliente)."""
+        await self._transporte.aclose()
+
+
+async def _dormir_real(segundos: float) -> None:
+    """Espera real de producción envuelta para satisfacer el puerto `Dormir`."""
+    await asyncio.sleep(segundos)
+
 
 @dataclass(frozen=True)
 class DependenciasVT:
-    """Grupo de dependencias inyectables del cliente (Art. III.2)."""
+    """Grupo de dependencias inyectables del cliente (Art. III.2).
+
+    Los seis puertos sustituibles (§6 del contrato) más los dos objetos de
+    estado en proceso — `limitador` (cubeta de minuto) y `cortacircuito` —
+    derivados de `reloj`/`dormir` aquí, sin globales de módulo (Art. II.5).
+    """
 
     cliente: ClienteHTTPVT
     cache: RepositorioCacheVT
@@ -147,19 +165,28 @@ class DependenciasVT:
     reloj: Reloj
     dormir: Dormir
     jitter: Jitter
+    limitador: Limitador
+    cortacircuito: Cortacircuito
 
 
 def dependencias_por_defecto() -> DependenciasVT:
     """Dependencias de producción (D2/D3): httpx real, caché y contador
 
     MongoDB con caída a memoria si falta la URI (Art. III.9), reloj UTC,
-    `asyncio.sleep` y jitter aleatorio.
+    espera real envuelta y jitter aleatorio.
     """
     import random
 
     from src.level2_agent.virustotal.cache import CacheMongo, ContadorMongo
+    from src.level2_agent.virustotal.configuracion import ConfigVT
+    from src.level2_agent.virustotal.limitador import Limitador
+    from src.level2_agent.virustotal.resiliencia import Cortacircuito
+
+    def reloj() -> datetime:
+        return datetime.now(UTC)
 
     api_key = os.environ.get("VT_API_KEY", "").strip()
+    tope_dia = ConfigVT.desde_entorno().tope_dia
     transporte = httpx.AsyncClient(
         timeout=httpx.Timeout(
             connect=TIMEOUT_CONEXION_SEGUNDOS, read=TIMEOUT_LECTURA_SEGUNDOS
@@ -168,8 +195,10 @@ def dependencias_por_defecto() -> DependenciasVT:
     return DependenciasVT(
         cliente=ClienteHttpx(api_key=api_key, transporte=transporte),
         cache=CacheMongo(),
-        contador=ContadorMongo(),
-        reloj=lambda: datetime.now(timezone.utc),
-        dormir=asyncio.sleep,
+        contador=ContadorMongo(tope=tope_dia),
+        reloj=reloj,
+        dormir=_dormir_real,
         jitter=lambda: random.uniform(0.0, 1.0),
+        limitador=Limitador(reloj=reloj, dormir=_dormir_real),
+        cortacircuito=Cortacircuito(reloj=reloj),
     )

@@ -33,6 +33,9 @@ FALLOS_CORTACIRCUITO: Final[int] = 5
 VENTANA_CORTACIRCUITO_SEGUNDOS: Final[float] = 60.0
 """La ventana del cortacircuitos dura 60 s (FR-004)."""
 
+VENTANA_RPM_SEGUNDOS: Final[float] = 60.0
+"""Ventana de la cubeta de minuto: 4 solicitudes «por minuto» (M06.1)."""
+
 TTL_ARCHIVO_DIAS: Final[int] = 7
 """TTL de caché para archivos: 7 días (FR-005)."""
 

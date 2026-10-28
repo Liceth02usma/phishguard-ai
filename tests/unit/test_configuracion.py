@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from src.level2_agent.virustotal import ConfigVT, ConfiguracionError
+from src.level2_agent.virustotal import ConfiguracionError, ConfigVT
 
 
 @pytest.mark.ac("AC-VT-02")
@@ -65,7 +65,15 @@ def test_enteros_inválidos_lanzan_configuracion_error(variable: str, valor: str
 @pytest.mark.ac("AC-VT-02")
 @pytest.mark.parametrize(
     ("valor", "esperado"),
-    [("true", True), ("True", True), ("1", True), ("YES", True), ("false", False), ("0", False), ("", False)],
+    [
+        ("true", True),
+        ("True", True),
+        ("1", True),
+        ("YES", True),
+        ("false", False),
+        ("0", False),
+        ("", False),
+    ],
 )
 def test_booleanos_true_1_yes_case_insensitive(valor: str, esperado: bool) -> None:
     """'true'/'1'/'yes' en cualquier mayúscula → True; cualquier otra cosa → False (D9)."""

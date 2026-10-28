@@ -8,7 +8,15 @@ import pytest
 from src.level2_agent.virustotal import ConfigVT, consultar_archivo
 from src.level2_agent.virustotal.cache import ContadorMemoria
 from src.level2_agent.virustotal.limitador import Limitador
-from tests.unit.dobles_vt import ClienteDoble, DormirFalso, RelojFalso, RespuestaDoble, cargar_respuesta, deps_prueba
+
+from dobles_vt import (
+    ClienteDoble,
+    DormirFalso,
+    RelojFalso,
+    RespuestaDoble,
+    cargar_respuesta,
+    deps_prueba,
+)
 
 
 def _limitador() -> tuple[Limitador, RelojFalso, DormirFalso]:
@@ -87,7 +95,11 @@ def test_ficha_diaria_consumida_solo_en_llamadas_a_red() -> None:
     contador = ContadorMemoria(tope=500)
     sha = "ab" * 32
     cliente = ClienteDoble(
-        rutas={("GET", f"/files/{sha}"): [RespuestaDoble(200, cargar_respuesta("archivo_maliciosa.json"))]}
+        rutas={
+            ("GET", f"/files/{sha}"): [
+                RespuestaDoble(200, cargar_respuesta("archivo_maliciosa.json"))
+            ]
+        }
     )
     deps = deps_prueba(cliente, contador=contador)
     config = ConfigVT(api_key="k", rpm=1000)

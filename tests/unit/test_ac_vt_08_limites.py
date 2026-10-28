@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from src.level2_agent.virustotal import ConfigVT, consultar_archivo
-from tests.unit.dobles_vt import ClienteDoble, RespuestaDoble, deps_prueba
+from src.level2_agent.virustotal import ConfigVT, consultar_archivo, presupuesto_nuevo
+
+from dobles_vt import ClienteDoble, RespuestaDoble, deps_prueba
 
 CONFIG = ConfigVT(api_key="clave-de-prueba", rpm=1000)  # sin esperas de minuto
 
@@ -71,16 +72,19 @@ def test_tabla_decision_limites(
 def test_presupuesto_décima_consulta_pasa_y_undécima_se_omite() -> None:
     """Los 10 primeros viajan; el 11º se omite con VT_PRESUPUESTO_AGOTADO (FR-006)."""
     config = ConfigVT(api_key="clave-de-prueba", rpm=1000, max_por_correo=10)
+    presupuesto = presupuesto_nuevo(config)  # compartido entre las consultas del correo
     cuerpo = _stats(malicious=5)
     rutas = {("GET", f"/files/{i:064x}"): [RespuestaDoble(200, cuerpo)] for i in range(10)}
     cliente = ClienteDoble(rutas=rutas)
     deps = deps_prueba(cliente)
     for i in range(10):
-        resultado = consultar_archivo(f"{i:064x}", config=config, deps=deps)
+        resultado = consultar_archivo(
+            f"{i:064x}", config=config, deps=deps, presupuesto=presupuesto
+        )
         assert resultado.consultas_externas == 1
     assert sum(1 for p in cliente.peticiones if p.metodo == "GET") == 10
 
-    once = consultar_archivo(f"{10:064x}", config=config, deps=deps)
+    once = consultar_archivo(f"{10:064x}", config=config, deps=deps, presupuesto=presupuesto)
     assert once.clasificacion == "desconocida"
     assert once.fuente == "sin_llamada"
     assert [b.codigo for b in once.banderas] == ["VT_PRESUPUESTO_AGOTADO"]

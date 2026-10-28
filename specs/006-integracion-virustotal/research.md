@@ -11,7 +11,9 @@ catálogos 5.2/5.3; lo que es lista configurable se marca como tal.
 
 ## D1 — Ubicación del código
 
-**Decisión**: paquete nuevo `src/level2_agent/virustotal/` (10 módulos), importado como
+**Decisión**: paquete nuevo `src/level2_agent/virustotal/` (11 módulos; `envios.py` se
+añadió en implementación para cumplir Art. III.1 ≤ 500 líneas — plan §Estructura
+actualizado), importado como
 `src.level2_agent.virustotal`, con `EmailData`/`Adjunto` (spec 002) como datos de entrada.
 
 **Razón**: M06.3 nombra `src/enrichment/virustotal.py`, pero los módulos M03/M04b/M05

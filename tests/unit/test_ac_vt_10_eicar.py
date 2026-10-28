@@ -7,8 +7,9 @@ from pathlib import Path
 
 import pytest
 from src.level2_agent.virustotal import ConfigVT, consultar_archivo
-from tests.unit.dobles_vt import ClienteDoble, RespuestaDoble, cargar_respuesta, deps_prueba
-from tests.unit.vector_eicar import EICAR_SHA256, generar_eicar
+
+from dobles_vt import ClienteDoble, RespuestaDoble, cargar_respuesta, deps_prueba
+from vector_eicar import EICAR_SHA256, generar_eicar
 
 
 @pytest.mark.ac("AC-VT-10")

@@ -10,14 +10,16 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from src.level2_agent.virustotal import ConfigVT, consultar_url
 from src.level2_agent.virustotal.identificadores import id_url_base64
-from tests.unit.dobles_vt import ClienteDoble, RespuestaDoble, cargar_respuesta, deps_prueba
+
+from dobles_vt import ClienteDoble, RespuestaDoble, cargar_respuesta, deps_prueba
 
 URLS_CONOCIDAS = [
     "https://ejemplo.com/ruta/archivo?x=1&y=2",
     "https://ejemplo.com/con espacios/a b.html",
     "https://ejemplo.com/base64+padding=",
 ]
-PATRON_URL_SAFE = re.compile(r"^[A-Za-z0-9_-]+$")
+# `*` y no `+`: la entrada vacía produce id vacío, que también es url-safe.
+PATRON_URL_SAFE = re.compile(r"^[A-Za-z0-9_-]*$")
 
 
 @pytest.mark.ac("AC-VT-02")

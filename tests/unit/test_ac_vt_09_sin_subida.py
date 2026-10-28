@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pytest
 from src.level2_agent.virustotal import ConfigVT, consultar_archivo, consultar_url
-from src.level2_agent.virustotal.cliente import enviar_url_desconocida, subir_archivo
-from tests.unit.dobles_vt import (
+from src.level2_agent.virustotal.envios import enviar_url_desconocida, subir_archivo
+
+from dobles_vt import (
     ClienteDoble,
     RespuestaDoble,
     cargar_respuesta,
@@ -26,7 +27,11 @@ def _sin_post(cliente: ClienteDoble) -> None:
 def test_archivo_desconocido_no_se_sube() -> None:
     """Hash con 404 → desconocida y cero POST hacia /files (FR-008)."""
     cliente = ClienteDoble(
-        rutas={("GET", f"/files/{SHA}"): [RespuestaDoble(404, cargar_respuesta("no_encontrado.json"))]}
+        rutas={
+            ("GET", f"/files/{SHA}"): [
+                RespuestaDoble(404, cargar_respuesta("no_encontrado.json"))
+            ]
+        }
     )
     resultado = consultar_archivo(SHA, config=CONFIG, deps=deps_prueba(cliente))
     assert resultado.clasificacion == "desconocida"
@@ -42,7 +47,11 @@ def test_url_desconocida_no_se_envia() -> None:
 
     identificador = id_url_base64(URL)
     cliente = ClienteDoble(
-        rutas={("GET", f"/urls/{identificador}"): [RespuestaDoble(404, cargar_respuesta("no_encontrado.json"))]}
+        rutas={
+            ("GET", f"/urls/{identificador}"): [
+                RespuestaDoble(404, cargar_respuesta("no_encontrado.json"))
+            ]
+        }
     )
     resultado = consultar_url(URL, config=CONFIG, deps=deps_prueba(cliente))
     assert resultado.clasificacion == "desconocida"

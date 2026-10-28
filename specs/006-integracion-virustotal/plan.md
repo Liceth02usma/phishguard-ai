@@ -7,7 +7,7 @@
 ## Summary
 
 Construir un cliente determinista de VirusTotal API v3 en `src/level2_agent/virustotal/`
-(10 módulos) que clasifique archivos por SHA-256, URLs (identificador Base64 url-safe sin
+(11 módulos) que clasifique archivos por SHA-256, URLs (identificador Base64 url-safe sin
 relleno), dominios e IPs leyendo `last_analysis_stats` con una **tabla de decisión** de
 umbrales configurables (FR-007); con **limitador de cubeta** `public` 4/min y 500/día
 (contador diario persistente, FR-002), **reintentos** en 429/5xx (hasta 3, exponencial
@@ -67,7 +67,7 @@ configuración + respuestas → mismo resultado; secretos solo por entorno, jam�
 parámetros; `mypy --strict` (Art. III.4); el modo `public` es solo demostración —
 prohibición comercial documentada (FR-002, Art. V.7)
 
-**Scale/Scope**: ~10 módulos nuevos en `src/level2_agent/virustotal/`, ~14 archivos de
+**Scale/Scope**: ~11 módulos nuevos en `src/level2_agent/virustotal/`, ~14 archivos de
 prueba en `tests/unit/`, 5 códigos de catálogo (`VT_URL_SOSPECHOSA`,
 `VT_ADJ_SOSPECHOSO`, `VT_DESCONOCIDO`, `VT_NO_DISPONIBLE`, `VT_PRESUPUESTO_AGOTADO`),
 1 dependencia nueva (`httpx`); ediciones **aditivas** y compartidas con las ramas de
@@ -91,7 +91,7 @@ las specs 007/008 en `scripts/verify.py`, `pyproject.toml`, `tests/unit/conftest
 | II.5 | Sin red real ni hora sin controlar | PASS | Cliente HTTP tras `httpx.MockTransport` (respuestas grabadas/dictadas); caché y contador con implementación en memoria y reloj inyectado; jitter y esperas tras callables inyectados (cero `time.sleep` real en pruebas) |
 | II.6 | Trazabilidad AC→prueba | PASS | `@pytest.mark.ac("AC-VT-01..10")`; verificado con `scripts/check_trazabilidad_ac.py --spec specs/006-integracion-virustotal/spec.md` |
 | II.7 | No borrar/relajar pruebas ni umbrales | PASS | No se modifica ninguna prueba existente; `fail_under` no baja |
-| III.1 | Archivos `.py` ≤ 500 líneas (objetivo 300) | PASS | 10 módulos por responsabilidad; estimado cada uno < 200 líneas |
+| III.1 | Archivos `.py` ≤ 500 líneas (objetivo 300) | PASS | 11 módulos por responsabilidad; el mayor (`cliente.py`) ≈ 370 líneas; los flujos tras flags viven en `envios.py` para respetar el límite |
 | III.2 | Funciones ≤ 40 líneas, ≤ 5 parámetros | PASS | La entrada común se agrupa en `ConfigVT` + `DependenciasVT` + `Presupuesto` (Art. III.2); el clasificador y el saneador son funciones puras de 1–3 parámetros |
 | III.3 | `snake_case` en español sin tildes | PASS | `consultar_archivo`, `clasificar_stats`, `limitador`, `cortacircuito`, `TOPE_CONSULTAS_DIA=500`, `UMBRAL_MALICIOSA=3` |
 | III.4 | Tipado estricto, Pydantic, docstrings | PASS | `mypy --strict` ampliado al paquete nuevo; `ResultadoVT`/`BanderaVT`/`ConfigVT` Pydantic; docstring en toda API pública |
@@ -179,8 +179,9 @@ src/
 │       ├── resiliencia.py           #   reintentos 429/5xx con Retry-After + cortacircuitos 5/60 s (AC-VT-04/05)
 │       ├── cache.py                 #   Repository TTL por tipo (archivos 7 d; URL/dominio/IP 24 h; 404 1 h, AC-VT-06)
 │       ├── presupuesto.py           #   presupuesto por correo (10, prioridad, VT_PRESUPUESTO_AGOTADO, FR-006)
-│       └── cliente.py               #   orquestador: endpoint + clasificación + flags + subida/envío tras flags
-│                                    #   (AC-VT-01/07/09/10); compuerta `evaluacion` en verify.py NO se toca
+│       ├── cliente.py               #   orquestador: endpoint + clasificación + flags (AC-VT-01/07/10)
+│       ├── envios.py                #   POST /files y /urls SOLO tras VT_UPLOAD_UNKNOWN /
+│       │                            #   VT_SUBMIT_UNKNOWN_URLS (AC-VT-09, FR-008); verify.py NO se toca
 
 tests/
 ├── unit/

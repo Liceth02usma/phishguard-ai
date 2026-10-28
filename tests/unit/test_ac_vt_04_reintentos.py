@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import pytest
-from src.level2_agent.virustotal import ConfigVT, consultar_archivo
-from tests.unit.dobles_vt import (
+from src.level2_agent.virustotal import ConfigVT, DependenciasVT, consultar_archivo
+
+from dobles_vt import (
     ClienteDoble,
+    DormirFalso,
+    RelojFalso,
     RespuestaDoble,
     cargar_respuesta,
     deps_prueba,
@@ -14,6 +17,13 @@ from tests.unit.dobles_vt import (
 SHA = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
 CONFIG = ConfigVT(api_key="clave-de-prueba")
 RUTA = f"/files/{SHA}"
+
+
+def _deps(cliente: ClienteDoble) -> tuple[DependenciasVT, DormirFalso]:
+    """Dependencias de prueba con acceso directo al dormir falso (esperas)."""
+    reloj = RelojFalso()
+    dormir = DormirFalso(reloj)
+    return deps_prueba(cliente, reloj=reloj, dormir=dormir), dormir
 
 
 @pytest.mark.ac("AC-VT-04")
@@ -31,11 +41,10 @@ def test_429_con_retry_after_respeta_el_encabezado() -> None:
             ]
         }
     )
-    deps = deps_prueba(cliente)
+    deps, dormir = _deps(cliente)
     resultado = consultar_archivo(SHA, config=CONFIG, deps=deps)
     assert resultado.clasificacion == "maliciosa"
-    assert deps.dormir is not None
-    assert deps.dormir.esperas == [7.0]
+    assert dormir.esperas == [7.0]
     assert cliente.contar("GET", RUTA) == 2
 
 
@@ -45,11 +54,10 @@ def test_429_persistente_reintenta_3_veces_1_2_4() -> None:
     cliente = ClienteDoble(
         rutas={("GET", RUTA): [RespuestaDoble(429, {})] * 4}
     )
-    deps = deps_prueba(cliente)
+    deps, dormir = _deps(cliente)
     resultado = consultar_archivo(SHA, config=CONFIG, deps=deps)
     assert resultado.clasificacion == "desconocida"
-    assert deps.dormir is not None
-    assert deps.dormir.esperas == [1.0, 2.0, 4.0]
+    assert dormir.esperas == [1.0, 2.0, 4.0]
     assert cliente.contar("GET", RUTA) == 4
 
 
@@ -58,11 +66,10 @@ def test_429_persistente_reintenta_3_veces_1_2_4() -> None:
 def test_5xx_persistente_reintenta_3_veces(estado: int) -> None:
     """500/502/503 → 3 reintentos con la misma espera exponencial (FR-003)."""
     cliente = ClienteDoble(rutas={("GET", RUTA): [RespuestaDoble(estado, {})] * 4})
-    deps = deps_prueba(cliente)
+    deps, dormir = _deps(cliente)
     resultado = consultar_archivo(SHA, config=CONFIG, deps=deps)
     assert resultado.clasificacion == "desconocida"
-    assert deps.dormir is not None
-    assert deps.dormir.esperas == [1.0, 2.0, 4.0]
+    assert dormir.esperas == [1.0, 2.0, 4.0]
     assert cliente.contar("GET", RUTA) == 4
     assert "VT_DESCONOCIDO" in [b.codigo for b in resultado.banderas]
 
@@ -73,20 +80,18 @@ def test_404_y_400_sin_reintentos(estado: int) -> None:
     """404 y 400 son terminales: exactamente una petición y cero esperas (FR-003)."""
     cuerpo = cargar_respuesta("no_encontrado.json") if estado == 404 else {}
     cliente = ClienteDoble(rutas={("GET", RUTA): [RespuestaDoble(estado, cuerpo)]})
-    deps = deps_prueba(cliente)
+    deps, dormir = _deps(cliente)
     consultar_archivo(SHA, config=CONFIG, deps=deps)
     assert cliente.contar("GET", RUTA) == 1
-    assert deps.dormir is not None
-    assert deps.dormir.esperas == []
+    assert dormir.esperas == []
 
 
 @pytest.mark.ac("AC-VT-04")
 def test_error_de_transport_no_reintenta() -> None:
     """Un error de transporte es fallo directo (D6): 1 intento, sin esperas."""
     cliente = ClienteDoble()  # sin ruta registrada → el doble lanza
-    deps = deps_prueba(cliente)
+    deps, dormir = _deps(cliente)
     resultado = consultar_archivo(SHA, config=CONFIG, deps=deps)
     assert resultado.clasificacion == "desconocida"
-    assert deps.dormir is not None
-    assert deps.dormir.esperas == []
+    assert dormir.esperas == []
     assert cliente.contar("GET", RUTA) == 1

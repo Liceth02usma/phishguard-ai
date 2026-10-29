@@ -91,3 +91,9 @@ strict = true
 [[tool.mypy.overrides]]
 module = ["filetype.*", "oletools.*", "oletools.olevba.*"]
 ignore_missing_imports = true
+
+# Spec 007: scoring con clasificador lineal se type-checkea estricto (Art. III.4).
+[[tool.mypy.overrides]]
+module = ["src.level3_logic.scoring", "src.level3_logic.scoring.*", "src.level3_logic.modelo"]
+ignore_errors = false
+strict = true

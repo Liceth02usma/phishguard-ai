@@ -231,7 +231,7 @@ and the constitution v2.1.0. Evidence of the assessment: `scripts/verify.py` exi
 `agent.py`/Gmail (`git diff main` empty), package = exactly 11 modules + 3 recorded
 fixtures in `tests/unit/respuestas_vt/` (no unrequested code).
 
-- [ ] T039 [US1] Add unit coverage for the `es_riesgosa` parameter of `consultar_url`
+- [X] T039 [US1] Add unit coverage for the `es_riesgosa` parameter of `consultar_url`
   (contract §1, FR-006): assert that marking a URL as risky only emits the priority-2
   detail (debug path) without altering the verdict, the flags, or the budget consumption.
   Implemented in `src/level2_agent/virustotal/cliente.py` (`consultar_url`) with zero

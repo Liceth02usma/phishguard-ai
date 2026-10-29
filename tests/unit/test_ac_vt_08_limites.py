@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import pytest
-from src.level2_agent.virustotal import ConfigVT, consultar_archivo, presupuesto_nuevo
+from src.level2_agent.virustotal import (
+    ConfigVT,
+    consultar_archivo,
+    consultar_url,
+    presupuesto_nuevo,
+)
+from src.level2_agent.virustotal.identificadores import id_url_base64
 
 from dobles_vt import ClienteDoble, RespuestaDoble, deps_prueba
 
@@ -89,3 +96,49 @@ def test_presupuesto_décima_consulta_pasa_y_undécima_se_omite() -> None:
     assert once.fuente == "sin_llamada"
     assert [b.codigo for b in once.banderas] == ["VT_PRESUPUESTO_AGOTADO"]
     assert sum(1 for p in cliente.peticiones if p.metodo == "GET") == 10
+
+
+@pytest.mark.ac("AC-VT-08")
+def test_es_riesgosa_solo_emite_el_detalle_de_prioridad(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`es_riesgosa` no altera veredicto, banderas ni presupuesto (contract §1, FR-006)."""
+    url_plana = "https://ejemplo.com/pago?token=secreto"
+    url_riesgosa = "https://ej/otro?token=secreto"
+    id_plana = id_url_base64(url_plana)
+    id_riesgosa = id_url_base64(url_riesgosa)
+    cuerpo = _stats(malicious=5)
+    cliente = ClienteDoble(
+        rutas={
+            ("GET", f"/urls/{id_plana}"): [RespuestaDoble(200, cuerpo)],
+            ("GET", f"/urls/{id_riesgosa}"): [RespuestaDoble(200, cuerpo)],
+        }
+    )
+    config = ConfigVT(api_key="clave-de-prueba", rpm=1000, max_por_correo=10)
+    presupuesto = presupuesto_nuevo(config)  # compartido: el flag no lo toca
+    deps = deps_prueba(cliente)
+
+    with caplog.at_level(logging.DEBUG):
+        plana = consultar_url(
+            url_plana, config=config, deps=deps, presupuesto=presupuesto
+        )
+    assert not any("prioridad 2" in r.getMessage() for r in caplog.records)
+
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG):
+        riesgosa = consultar_url(
+            url_riesgosa,
+            config=config,
+            deps=deps,
+            presupuesto=presupuesto,
+            es_riesgosa=True,
+        )
+    assert any("prioridad 2" in r.getMessage() for r in caplog.records)
+
+    # Sin el flag el resultado y el consumo serían idénticos (la prioridad vive en el wiring).
+    assert riesgosa.clasificacion == plana.clasificacion == "maliciosa"
+    assert [b.codigo for b in riesgosa.banderas] == [b.codigo for b in plana.banderas]
+    assert riesgosa.consultas_externas == plana.consultas_externas == 1
+    assert presupuesto.restantes == 8  # 10 − 2: consumió lo mismo con y sin el flag
+    assert cliente.contar("GET", f"/urls/{id_plana}") == 1
+    assert cliente.contar("GET", f"/urls/{id_riesgosa}") == 1

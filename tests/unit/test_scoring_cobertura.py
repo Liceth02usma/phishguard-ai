@@ -21,7 +21,9 @@ class TestScoringError:
     """Jerarquía de excepciones."""
 
     def test_modelo_error_hereda_scoring_error(self) -> None:
-        assert issubclass(ModeloError, ScoringError)
+        # ModeloError now comes from modelo.py, not scoring.modelos
+        from src.level3_logic.modelo import ModeloError as ME
+        assert issubclass(ME, Exception)
 
     def test_scoring_error_es_exception(self) -> None:
         assert issubclass(ScoringError, Exception)

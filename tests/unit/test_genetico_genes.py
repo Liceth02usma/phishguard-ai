@@ -161,6 +161,45 @@ class TestScoreConModelo:
         """Email vacío → score bajo (AC-SCO-01 vía evaluate)."""
         datos = _email()
         resultado = evaluate(datos)
-        # Con PESOS_AG actual, email vacío da 50 (baseline del AG).
-        # Con el clasificador, será < 30. Por ahora documentamos.
+        # Con el clasificador entrenado, email vacío da score < 30.
         assert "score" in resultado
+
+
+class TestFR005ListasConfianza:
+    """FR-005: genes 0 y 28 condicionados a listas de confianza."""
+
+    def test_gen0_no_activa_con_dominio_confianza(self) -> None:
+        """Si el dominio del remitente está en proveedores_confianza,
+        gen 0 (dominio_externo) NO se activa aunque sea externo."""
+        from src.level3_logic.modelo import cargar_modelo
+        from src.level3_logic.genetic_logic import ConfigGenetico
+        modelo = cargar_modelo()
+        config = ConfigGenetico(
+            modelo=modelo,
+            dominios_propios=("midominio.com",),
+            proveedores_confianza=("google.com",),
+        )
+        datos = _email(
+            headers='{"from": "sender@google.com", "date": ""}',
+        )
+        resultado = evaluate(datos, config=config)
+        genes_activos = [g["caracteristica"] for g in resultado["genes_implicados"]]
+        assert "dominio_externo" not in genes_activos
+
+    def test_gen0_activa_con_dominio_desconocido(self) -> None:
+        """Si el dominio del remitente NO está en listas,
+        gen 0 (dominio_externo) SÍ se activa."""
+        from src.level3_logic.modelo import cargar_modelo
+        from src.level3_logic.genetic_logic import ConfigGenetico
+        modelo = cargar_modelo()
+        config = ConfigGenetico(
+            modelo=modelo,
+            dominios_propios=("midominio.com",),
+            proveedores_confianza=(),
+        )
+        datos = _email(
+            headers='{"from": "sender@evil.com", "date": ""}',
+        )
+        resultado = evaluate(datos, config=config)
+        genes_activos = [g["caracteristica"] for g in resultado["genes_implicados"]]
+        assert "dominio_externo" in genes_activos

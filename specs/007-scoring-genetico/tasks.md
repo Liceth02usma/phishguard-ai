@@ -84,3 +84,10 @@
 ## Implementation Strategy
 
 **MVP = US1 completa** (única historia). Orden: Setup → fundacional (entrenar modelo + loader) → rojas US1 → genético corregido → paquete scoring → wire → verde/cobertura → polish. El script de entrenamiento (T004) es el primer paso fundacional — sin el JSON del modelo, nada del scoring funciona. Riesgos: (1) el entrenamiento puede no satisfacer AC-SCO-01 → ajustar `class_weight` o `C` (D13); (2) carrera por directorio compartido — commitear pronto; (3) T028 depende de aprobación humana y T029 de la rama 015 — ninguno bloquea el merge del resto.
+
+## Phase 5: Convergence
+
+- [ ] T031 Eliminar `PESOS_AG` de `src/level3_logic/genetic_logic.py` — la constante está definida (línea 7) pero ya no se usa en el scoring (T016 dice "eliminar `PESOS_AG` hardcodeado"); su presencia contradice FR-001 y el plan (contradicts)
+- [ ] T032 Unificar `ModeloError`: `src/level3_logic.modelo.ModeloError` y `src/level3_logic.scoring.modelos.ModeloError` son clases distintas; hacer que `scoring.modelos.ModeloError` re-exporte la de `modelo.py` o eliminar el duplicado, para que el contrato `__init__.py` y `motor.py` usen la misma clase (contradicts)
+- [ ] T033 Añadir validación en `ConfigScoring.desde_entorno()` que lance `ScoringError` cuando una variable de entorno tenga formato inválido (p. ej. `RUTA_MODELO` apuntando a ruta inexistente no es error, pero valores no-parseables sí); la tarea T018 exige "env malformada ⇒ ScoringError" (partial)
+- [ ] T034 Añadir prueba en `tests/unit/test_genetico_genes.py` que inyecte `ConfigGenetico` con `dominios_propios` y `proveedores_confianza` personalizados y verifique que genes 0 y 28 NO se activan cuando el dominio del remitente está en las listas (FR-005, T009 partial)

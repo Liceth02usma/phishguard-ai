@@ -6,14 +6,14 @@ from typing import Literal
 
 from pydantic import BaseModel, model_validator
 from src.level2_agent.banderas.modelos import TOPE_PUNTOS_BANDERAS
+from src.level3_logic.modelo import ModeloError
 
 
 class ScoringError(Exception):
     """Error base del paquete scoring."""
 
 
-class ModeloError(ScoringError):
-    """Error al cargar o validar el modelo del clasificador."""
+# ModeloError se importa de src.level3_logic.modelo (fuente única)
 
 
 class BanderaScoring(BaseModel):

@@ -4,40 +4,8 @@ from typing import Dict, Any, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-PESOS_AG = {
-    "cuerpo_corto": 0.935,
-    "accion_legal": 0.935,
-    "instruccion_confidencialidad": 0.806,
-    "palabras_clave_url": 0.806,
-    "asunto_verificacion": 0.677,
-    "url_con_ip": 0.613,
-    "multiples_urls": 0.548,
-    "dominio_externo": 0.355,
-    "zona_horaria_inconsistente": 0.355,
-    "mismatch_dominio_url": 0.355,
-    "solo_enlace_sin_texto": 0.161,
-    "solicita_credenciales": -0.032,
-    "asunto_financiero": -0.097,
-    "mezcla_idiomas": -0.097,
-    "asunto_premio": -0.161,
-    "solicita_datos_bancarios": -0.161,
-    "ip_en_cuerpo": -0.161,
-    "suplantacion_marca": -0.226,
-    "destinatario_undisclosed": -0.226,
-    "url_acortada": -0.355,
-    "envio_madrugada": -0.355,
-    "nombre_display_sospechoso": -0.355,
-    "asunto_corto": -0.355,
-    "errores_ortograficos": -0.419,
-    "dominio_gratuito": -0.419,
-    "asunto_urgencia": -0.484,
-    "protocolo_http_inseguro": -0.484,
-    "promesa_beneficio": -0.484,
-    "telefono_detectado": -0.548,
-    "fecha_limite": -0.548,
-    "asunto_amenaza": -0.613,
-    "apelacion_miedo": -0.871,
-}
+# PESOS_AG eliminado (spec 007): los coeficientes ahora provienen del
+# modelo entrenado en data/modelo/clasificador_v1.json vía ConfigGenetico.
 
 MAPEO_INDICES = [
     "dominio_externo", "nombre_display_sospechoso", "dominio_gratuito",

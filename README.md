@@ -197,8 +197,14 @@ phishguard-ai/
 │   │       ├── __init__.py     # Retriever RAG vectorial
 │   │       ├── ip_reputation.py # Consulta VirusTotal
 │   │       └── jira_integration.py # Creación de tickets Jira
-│   ├── level3_logic/           # Algoritmo genético
-│   │   └── genetic_logic.py    # 32 genes de detección
+│   ├── level3_logic/           # Scoring con clasificador lineal
+│   │   ├── genetic_logic.py    # 32 genes de detección (FR-004/005)
+│   │   ├── modelo.py           # Carga/validación del modelo entrenado
+│   │   └── scoring/            # Fachada: clasificador + banderas
+│   │       ├── __init__.py
+│   │       ├── motor.py        # calcular_score_final
+│   │       ├── modelos.py      # ScoreFinal, BanderaScoring
+│   │       └── configuracion.py
 │   └── gmail_integration/      # Integración con Gmail
 │       ├── gmail_auth.py       # Autenticación OAuth 2.0
 │       ├── gmail_reader.py     # Lectura y acciones en Gmail

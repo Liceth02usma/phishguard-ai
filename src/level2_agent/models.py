@@ -81,6 +81,13 @@ class PhishingReport(BaseModel):
     justificacion_veredicto: str = Field(
         description="Justificación académica citando controles NIST o directrices OWASP"
     )
+    # Campos de scoring con clasificador lineal (spec 007, contrato 012)
+    score_clasificador: float | None = Field(
+        default=None, description="Score- Score del clasificador lineal (0-100)"
+    )
+    version_modelo: str | None = Field(
+        default=None, description="Versión del modelo de clasificador usado"
+    )
 
 
 SCORE_UMBRAL_BAJO = 30

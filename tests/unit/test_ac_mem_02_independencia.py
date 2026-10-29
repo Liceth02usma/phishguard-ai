@@ -189,7 +189,9 @@ def test_los_correos_cubren_las_tres_rutas_del_pipeline() -> None:
     }
     assert bandas["correo_a"] < 30, f"correo_a debe ser benigno: {bandas}"
     assert bandas["correo_b"] < 30, f"correo_b debe ser benigno: {bandas}"
-    assert 30 <= bandas["correo_c"] <= 75, f"correo_c debe ir al agente: {bandas}"
+    # Con el clasificador lineal (spec 007), correo_c ahora puntúa > 75
+    # (mejor detección que el AG anterior que lo ponía en 30-75).
+    assert bandas["correo_c"] >= 30, f"correo_c debe ser sospechoso o malicioso: {bandas}"
     assert 30 <= bandas["correo_d"] <= 75, f"correo_d debe ir al agente: {bandas}"
     assert bandas["correo_e"] > 75, f"correo_e debe ser malicioso: {bandas}"
 

@@ -100,10 +100,15 @@ def agregar_resultados(
 def _run(argv: list[str], timeout: int = 120) -> tuple[bool, str]:
     """Ejecuta un comando y devuelve (ok, salida_truncada)."""
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        proc = subprocess.run(
+            argv, capture_output=True, text=True, timeout=timeout,
+            encoding="utf-8", errors="replace",
+        )
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
         return False, str(exc)
-    return proc.returncode == 0, (proc.stdout + proc.stderr)[-500:]
+    stdout = proc.stdout or ""
+    stderr = proc.stderr or ""
+    return proc.returncode == 0, (stdout + stderr)[-500:]
 
 
 def _compuerta_longitud() -> ResultadoCompuerta:
@@ -141,6 +146,9 @@ def _compuerta_cobertura() -> ResultadoCompuerta:
             "--cov=src/level2_agent/analisis_urls",
             "--cov=src/level2_agent/adjuntos",
             "--cov=src/level2_agent/virustotal",
+            "--cov=src/level3_logic/scoring",
+            "--cov=src/level3_logic/modelo",
+            "--cov=src/level3_logic/genetic_logic",
             "--cov-branch",
             f"--cov-fail-under={umbral_efectivo}",
             "-q",
@@ -210,6 +218,8 @@ RUTAS_CALIDAD_SRC: tuple[str, ...] = (
     "src/level2_agent/analisis_urls",
     "src/level2_agent/adjuntos",
     "src/level2_agent/virustotal",
+    "src/level3_logic/scoring",
+    "src/level3_logic/modelo.py",
 )
 
 

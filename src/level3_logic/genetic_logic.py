@@ -1,42 +1,11 @@
 import logging
+import re
 from typing import Dict, Any, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-PESOS_AG = {
-    "cuerpo_corto": 0.935,
-    "accion_legal": 0.935,
-    "instruccion_confidencialidad": 0.806,
-    "palabras_clave_url": 0.806,
-    "asunto_verificacion": 0.677,
-    "url_con_ip": 0.613,
-    "multiples_urls": 0.548,
-    "dominio_externo": 0.355,
-    "zona_horaria_inconsistente": 0.355,
-    "mismatch_dominio_url": 0.355,
-    "solo_enlace_sin_texto": 0.161,
-    "solicita_credenciales": -0.032,
-    "asunto_financiero": -0.097,
-    "mezcla_idiomas": -0.097,
-    "asunto_premio": -0.161,
-    "solicita_datos_bancarios": -0.161,
-    "ip_en_cuerpo": -0.161,
-    "suplantacion_marca": -0.226,
-    "destinatario_undisclosed": -0.226,
-    "url_acortada": -0.355,
-    "envio_madrugada": -0.355,
-    "nombre_display_sospechoso": -0.355,
-    "asunto_corto": -0.355,
-    "errores_ortograficos": -0.419,
-    "dominio_gratuito": -0.419,
-    "asunto_urgencia": -0.484,
-    "protocolo_http_inseguro": -0.484,
-    "promesa_beneficio": -0.484,
-    "telefono_detectado": -0.548,
-    "fecha_limite": -0.548,
-    "asunto_amenaza": -0.613,
-    "apelacion_miedo": -0.871,
-}
+# PESOS_AG eliminado (spec 007): los coeficientes ahora provienen del
+# modelo entrenado en data/modelo/clasificador_v1.json vía ConfigGenetico.
 
 MAPEO_INDICES = [
     "dominio_externo", "nombre_display_sospechoso", "dominio_gratuito",
@@ -64,6 +33,35 @@ BRANDS = [
 SHORTENERS = ["bit.ly", "tinyurl", "goo.gl", "t.co"]
 URL_KEYWORDS = ["login", "verify", "secure", "update", "verificar", "acceso"]
 URL_STOP = set(' \t\n\r"\'<>()[]{},')
+
+# --- Proveedores de confianza por defecto (FR-005, research D5) ---
+PROVEEDORES_CONFIANZA_POR_DEFECTO: tuple[str, ...] = (
+    "google.com", "microsoft.com", "apple.com", "amazon.com",
+    "paypal.com", "visa.com", "mastercard.com",
+    "bbva.com", "santander.com", "banco.com",
+    "sendgrid.net", "mailchimp.com", "amazonses.com",
+    "office365.us", "outlook.com",
+)
+
+
+class ConfigGenetico:
+    """Configuración del evaluador genético con modelo entrenado (FR-001/FR-005/FR-006).
+
+    Si no se provee, se carga el modelo por defecto y se leen listas de entorno.
+    """
+
+    def __init__(
+        self,
+        modelo: Any = None,
+        dominios_propios: tuple[str, ...] = (),
+        proveedores_confianza: tuple[str, ...] = (),
+    ) -> None:
+        if modelo is None:
+            from src.level3_logic.modelo import cargar_modelo
+            modelo = cargar_modelo()
+        self.modelo = modelo
+        self.dominios_propios = dominios_propios
+        self.proveedores_confianza = proveedores_confianza or PROVEEDORES_CONFIANZA_POR_DEFECTO
 
 
 def _extraer_de_json_str(s: str, clave: str) -> str:
@@ -182,13 +180,32 @@ def _detectar_ip_en_texto(texto_lower: str) -> bool:
 
 
 def _contiene_alguna(lista_palabras: List[str], texto_lower: str) -> bool:
+    """Coincidencia por palabra completa (FR-004, AC-SCO-06).
+
+    Usa regex con word boundaries para evitar que 'urgente' coincida
+    en 'insurgente'. Case-insensitive, soporta acentos.
+    """
     for palabra in lista_palabras:
-        if palabra in texto_lower:
+        patron = re.compile(rf"(?<!\w){re.escape(palabra)}(?!\w)", re.IGNORECASE)
+        if patron.search(texto_lower):
             return True
     return False
 
 
-def evaluate(email_data: Dict[str, Any]) -> Dict[str, Any]:
+def evaluate(email_data: Dict[str, Any], config: Optional[ConfigGenetico] = None) -> Dict[str, Any]:
+    """Evalúa los 32 genes y calcula score con el clasificador lineal.
+
+    Args:
+        email_data: diccionario con campos del email.
+        config: configuración con modelo entrenado y listas de dominios.
+            Si es None, se carga el modelo por defecto.
+
+    Returns:
+        Diccionario con 'score', 'genes_implicados', 'suma_lineal_ag', 'version_modelo'.
+    """
+    if config is None:
+        config = ConfigGenetico()
+
     html_body = str(email_data.get("htmlBody", ""))
     text_body = str(email_data.get("textBody", ""))
     subject = str(email_data.get("subject", ""))
@@ -196,7 +213,14 @@ def evaluate(email_data: Dict[str, Any]) -> Dict[str, Any]:
     headers_raw = email_data.get("headers", {})
 
     if not html_body and not text_body and not subject and not recipient:
-        return {"score": 50.0, "genes_implicados": [], "suma_lineal_ag": 0.0}
+        from src.level3_logic.modelo import predecir_probabilidad
+        prob_cero = predecir_probabilidad(config.modelo, [0] * 32)
+        return {
+            "score": round(prob_cero * 100.0, 2),
+            "genes_implicados": [],
+            "suma_lineal_ag": 0.0,
+            "version_modelo": config.modelo.version,
+        }
 
     subject_lower = subject.lower()
     recipient_lower = recipient.lower()
@@ -229,7 +253,10 @@ def evaluate(email_data: Dict[str, Any]) -> Dict[str, Any]:
     genes = [0] * 32
 
     if sender_dominio and receiver_dominio:
-        genes[0] = int(sender_dominio != receiver_dominio)
+        # FR-005: no activar si el dominio del remitente está en listas de confianza
+        dominios_conocidos = set(config.dominios_propios) | set(config.proveedores_confianza)
+        if sender_dominio not in dominios_conocidos:
+            genes[0] = int(sender_dominio != receiver_dominio)
 
     if sender_display and sender_dominio:
         for m in BRANDS:
@@ -326,8 +353,10 @@ def evaluate(email_data: Dict[str, Any]) -> Dict[str, Any]:
     genes[27] = url_con_ip
 
     if sender_dominio and dominios_url:
+        # FR-005: no activar mismatch si el dominio URL está en listas de confianza
+        dominios_conocidos = set(config.dominios_propios) | set(config.proveedores_confianza)
         for d in dominios_url:
-            if d and sender_dominio not in d and d not in sender_dominio:
+            if d and d not in dominios_conocidos and sender_dominio not in d and d not in sender_dominio:
                 genes[28] = 1
                 break
 
@@ -335,22 +364,23 @@ def evaluate(email_data: Dict[str, Any]) -> Dict[str, Any]:
     genes[30] = url_palabras_clave
     genes[31] = int(len(urls_en_cuerpo) > 3)
 
+    # FR-001: scoring con coeficientes del modelo entrenado
+    from src.level3_logic.modelo import predecir_probabilidad
+
     suma_lineal_ag = 0.0
     genes_implicados = []
     for pos, nombre in enumerate(MAPEO_INDICES):
         if genes[pos] == 1:
-            peso = PESOS_AG.get(nombre, 0.0)
+            peso = config.modelo.coeficientes.get(nombre, 0.0)
             suma_lineal_ag += peso
-            genes_implicados.append({"caracteristica": nombre, "peso": peso})
+            genes_implicados.append({"caracteristica": nombre, "peso": round(peso, 6)})
 
-    try:
-        e = 2.718281828459 ** (-suma_lineal_ag)
-        score_mapeado = (1.0 / (1.0 + e)) * 100.0
-    except Exception:
-        score_mapeado = 100.0 if suma_lineal_ag > 0 else 0.0
+    prob = predecir_probabilidad(config.modelo, genes)
+    score_mapeado = prob * 100.0
 
     return {
         "score": round(score_mapeado, 2),
         "genes_implicados": genes_implicados,
         "suma_lineal_ag": round(suma_lineal_ag, 4),
+        "version_modelo": config.modelo.version,
     }

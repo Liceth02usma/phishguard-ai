@@ -1,7 +1,8 @@
-﻿# Specification Quality Checklist: Scoring Genético con Banderas
+﻿# Specification Quality Checklist: Scoring con Clasificador Lineal y Banderas
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-10-22
+**Updated**: 2026-10-28 — spec reescrita para clasificador lineal
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -31,4 +32,4 @@
 
 ## Notes
 
-- Especificación lista para /speckit.plan.
+- Especificación actualizada (2026-10-28): algoritmo genético reemplazado por clasificador lineal pre-entrenado. Lista para `/speckit.plan` (requiere re-plan).

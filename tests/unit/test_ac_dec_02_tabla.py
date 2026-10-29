@@ -9,9 +9,6 @@ from __future__ import annotations
 
 import pytest
 
-from src.level2_agent.decision.modelos import EntradaMotor, VeredictoMotor
-from src.level3_logic.scoring.modelos import ScoreFinal
-
 from dobles_decision import entrada_ejemplo
 
 
@@ -51,13 +48,16 @@ def test_tabla_decision_limites(
 
     resultado = evaluar_veredicto(entrada)
     assert resultado.veredicto == veredicto_esperado, (
-        f"score={score}, agente={confirmacion}: veredicto {resultado.veredicto} != {veredicto_esperado}"
+        f"score={score}, agente={confirmacion}: "
+        f"veredicto {resultado.veredicto} != {veredicto_esperado}"
     )
     assert resultado.nivel_severidad == severidad_esperada, (
-        f"score={score}, agente={confirmacion}: severidad {resultado.nivel_severidad} != {severidad_esperada}"
+        f"score={score}, agente={confirmacion}: "
+        f"severidad {resultado.nivel_severidad} != {severidad_esperada}"
     )
     assert resultado.ruta == ruta_esperada, (
-        f"score={score}, agente={confirmacion}: ruta {resultado.ruta} != {ruta_esperada}"
+        f"score={score}, agente={confirmacion}: "
+        f"ruta {resultado.ruta} != {ruta_esperada}"
     )
 
 

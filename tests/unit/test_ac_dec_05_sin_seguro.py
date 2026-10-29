@@ -38,7 +38,7 @@ def test_sin_seguro_veredicto_bajo() -> None:
 
     resultado = evaluar_veredicto(entrada)
     _verificar_sin_seguro(resultado)
-    assert resultado.veredicto != "seguro"
+    assert resultado.veredicto != "seguro"  # type: ignore[comparison-overlap]
 
 
 def test_sin_seguro_veredicto_sospechoso() -> None:
@@ -78,8 +78,9 @@ def test_sin_seguro_veredicto_revision() -> None:
 def test_tipo_veredicto_no_tiene_seguro() -> None:
     """El tipo Literal Veredicto no incluye 'seguro' como valor posible."""
     # Verificación estática: el tipo Veredicto es Literal sin 'seguro'
-    from src.level2_agent.decision.modelos import Veredicto
     from typing import get_args
+
+    from src.level2_agent.decision.modelos import Veredicto
 
     valores = get_args(Veredicto)
     assert "seguro" not in valores

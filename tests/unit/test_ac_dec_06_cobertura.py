@@ -8,10 +8,8 @@ directamente.
 
 from __future__ import annotations
 
-from src.level2_agent.adjuntos.modelos import BanderaAdjunto
 from src.level2_agent.banderas.modelos import (
     BanderaActivada,
-    EstadosAutenticacion,
 )
 from src.level2_agent.decision.modelos import VerificacionIncompleta
 from src.level2_agent.virustotal.modelos import (
@@ -24,7 +22,7 @@ from dobles_decision import entrada_ejemplo
 
 def _vt_maliciosa(tipo: str, id_: str) -> ResultadoVT:
     return ResultadoVT(
-        tipo=tipo,
+        tipo=tipo,  # type: ignore[arg-type]
         identificador=id_,
         clasificacion="maliciosa",
         fuente="cache",

@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import Final, Literal
 
 from pydantic import BaseModel, Field
-
 from src.level2_agent.adjuntos.modelos import AnalisisAdjunto
 from src.level2_agent.banderas.modelos import (
     BanderaActivada,

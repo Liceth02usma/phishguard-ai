@@ -52,14 +52,12 @@ def _score_bajo_con_bandera(entrada: EntradaMotor) -> bool:
             return True
     # Bandera media o alta en adjuntos
     for adj in entrada.resultado_adjuntos:
-        for b in adj.banderas:
-            if b.severidad in ("media", "alta"):
-                return True
+        if any(b.severidad in ("media", "alta") for b in adj.banderas):
+            return True
     # Bandera media o alta en VT
     for vt in entrada.resultados_vt:
-        for b in vt.banderas:
-            if b.severidad in ("media", "alta"):
-                return True
+        if any(b.severidad in ("media", "alta") for b in vt.banderas):
+            return True
     return False
 
 
@@ -102,7 +100,7 @@ def evaluar_tabla(
         ("sospechoso", "Medio", "heuristica"),
         ("sin_indicadores", "Bajo", "heuristica"),
     ]
-    for predicado, resultado in zip(predicados, resultados):
+    for predicado, resultado in zip(predicados, resultados, strict=False):
         if predicado(entrada):
             return resultado
     # Por construcción, la fila 6 siempre aplica (catch-all).

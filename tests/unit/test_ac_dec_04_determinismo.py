@@ -9,8 +9,6 @@ from __future__ import annotations
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from src.level2_agent.decision.modelos import EntradaMotor, VeredictoMotor
-
 from dobles_decision import entrada_ejemplo
 
 

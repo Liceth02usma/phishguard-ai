@@ -7,20 +7,15 @@ y NO se activa cuando la condición no se cumple.
 
 from __future__ import annotations
 
-import pytest
-
 from src.level2_agent.adjuntos.modelos import BanderaAdjunto
 from src.level2_agent.banderas.modelos import (
     BanderaActivada,
     EstadosAutenticacion,
 )
-from src.level2_agent.decision.modelos import EntradaMotor, VeredictoMotor
-from src.level2_agent.models import EmailData
 from src.level2_agent.virustotal.modelos import (
     LastAnalysisStats,
     ResultadoVT,
 )
-from src.level3_logic.scoring.modelos import ScoreFinal
 
 from dobles_decision import entrada_ejemplo
 
@@ -28,7 +23,7 @@ from dobles_decision import entrada_ejemplo
 def _vt_maliciosa(tipo: str, identificador: str) -> ResultadoVT:
     """Crea un ResultadoVT con clasificación maliciosa."""
     return ResultadoVT(
-        tipo=tipo,
+        tipo=tipo,  # type: ignore[arg-type]
         identificador=identificador,
         clasificacion="maliciosa",
         fuente="cache",
@@ -40,7 +35,7 @@ def _vt_maliciosa(tipo: str, identificador: str) -> ResultadoVT:
 def _vt_limpia(tipo: str, identificador: str) -> ResultadoVT:
     """Crea un ResultadoVT con clasificación limpia."""
     return ResultadoVT(
-        tipo=tipo,
+        tipo=tipo,  # type: ignore[arg-type]
         identificador=identificador,
         clasificacion="limpia",
         fuente="cache",
@@ -215,7 +210,12 @@ class TestR5:
             sha256="a" * 64,
             md5="b" * 32,
             sha1="c" * 40,
-            banderas=[BanderaAdjunto(codigo="ADJ_MACRO", severidad="alta", puntos=20, detalle="macro detectado")],
+            banderas=[
+                BanderaAdjunto(
+                    codigo="ADJ_MACRO", severidad="alta", puntos=20,
+                    detalle="macro detectado",
+                )
+            ],
             detalles=["cifrado_con_contrasena"],
         )
         entrada = entrada_ejemplo(
@@ -241,7 +241,12 @@ class TestR5:
             sha256="a" * 64,
             md5="b" * 32,
             sha1="c" * 40,
-            banderas=[BanderaAdjunto(codigo="ADJ_MACRO", severidad="alta", puntos=20, detalle="macro detectado")],
+            banderas=[
+                BanderaAdjunto(
+                    codigo="ADJ_MACRO", severidad="alta", puntos=20,
+                    detalle="macro detectado",
+                )
+            ],
             detalles=["cifrado_con_contrasena"],
         )
         entrada = entrada_ejemplo(
@@ -265,7 +270,12 @@ class TestR5:
             sha256="a" * 64,
             md5="b" * 32,
             sha1="c" * 40,
-            banderas=[BanderaAdjunto(codigo="ADJ_MACRO", severidad="alta", puntos=20, detalle="macro detectado")],
+            banderas=[
+                BanderaAdjunto(
+                    codigo="ADJ_MACRO", severidad="alta", puntos=20,
+                    detalle="macro detectado",
+                )
+            ],
             detalles=[],
         )
         entrada = entrada_ejemplo(

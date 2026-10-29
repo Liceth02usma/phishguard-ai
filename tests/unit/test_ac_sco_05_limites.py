@@ -6,7 +6,6 @@ Tabla de valores límite: 59/60/61 puntos y 99/100/101 score previo.
 from __future__ import annotations
 
 import pytest
-
 from src.level2_agent.banderas.modelos import TOPE_PUNTOS_BANDERAS
 
 

@@ -7,7 +7,6 @@ mayúsculas y acentos.
 from __future__ import annotations
 
 import pytest
-
 from src.level3_logic.genetic_logic import _contiene_alguna
 
 

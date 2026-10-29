@@ -5,15 +5,15 @@ Usa hypothesis con coeficientes y puntos de banderas crecientes.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
 from src.level3_logic.modelo import cargar_modelo, predecir_probabilidad
 
-from pathlib import Path
-
-RUTA_JSON = Path(__file__).resolve().parent.parent.parent / "data" / "modelo" / "clasificador_v1.json"
+PROYECTO = Path(__file__).resolve().parent.parent.parent
+RUTA_JSON = PROYECTO / "data" / "modelo" / "clasificador_v1.json"
 
 
 def _score_final(score_clasificador: float, puntos_banderas: int) -> int:
@@ -45,7 +45,7 @@ def test_monotonicidad_genes() -> None:
     prob_base = predecir_probabilidad(modelo, genes_base)
     # Activar todos los genes con coeficiente positivo
     genes_pos = [0] * 32
-    for i, nombre in enumerate(modelo.coeficientes):
+    for _i, nombre in enumerate(modelo.coeficientes):
         from src.level3_logic.genetic_logic import MAPEO_INDICES
         if modelo.coeficientes[nombre] > 0:
             idx = MAPEO_INDICES.index(nombre)

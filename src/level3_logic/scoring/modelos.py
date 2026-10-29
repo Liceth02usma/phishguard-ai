@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Literal
 
 from pydantic import BaseModel, model_validator
-
 from src.level2_agent.banderas.modelos import TOPE_PUNTOS_BANDERAS
 
 
@@ -60,6 +59,7 @@ class ScoreFinal(BaseModel):
             )
         if self.puntos_banderas > TOPE_PUNTOS_BANDERAS:
             raise ValueError(
-                f"puntos_banderas={self.puntos_banderas} > TOPE_PUNTOS_BANDERAS={TOPE_PUNTOS_BANDERAS}"
+                f"puntos_banderas={self.puntos_banderas} "
+                f"> TOPE_PUNTOS_BANDERAS={TOPE_PUNTOS_BANDERAS}"
             )
         return self

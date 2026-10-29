@@ -8,19 +8,24 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from src.level2_agent.banderas import ResultadoBanderas, evaluar_banderas
-from src.level2_agent.banderas.modelos import TOPE_PUNTOS_BANDERAS
-from src.level2_agent.analisis_urls import analizar_urls, ResultadoURLs, DependenciasURLs, dependencias_por_defecto
 from src.level2_agent.adjuntos.modelos import AnalisisAdjunto
+from src.level2_agent.analisis_urls import (
+    DependenciasURLs,
+    ResultadoURLs,
+    analizar_urls,
+    dependencias_por_defecto,
+)
+from src.level2_agent.banderas import ResultadoBanderas
+from src.level2_agent.banderas.modelos import TOPE_PUNTOS_BANDERAS
 from src.level2_agent.models import EmailData
-from src.level3_logic.genetic_logic import evaluate, ConfigGenetico
-from src.level3_logic.modelo import cargar_modelo, ClasificadorLineal, ModeloError
+from src.level3_logic.genetic_logic import ConfigGenetico, evaluate
+from src.level3_logic.modelo import cargar_modelo
 
 from .configuracion import ConfigScoring
-from .modelos import BanderaScoring, GenImplicado, ScoreFinal, ScoringError
+from .modelos import BanderaScoring, GenImplicado, ScoreFinal
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +39,7 @@ class DependenciasScoring:
 
     cliente_rdap: Any = None
     deps_urls: DependenciasURLs = field(default_factory=dependencias_por_defecto)
-    ahora: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    ahora: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 def calcular_score_final(
@@ -101,9 +106,9 @@ def calcular_score_final(
             email_data, config=config_band, ahora=deps.ahora, cliente_rdap=deps.cliente_rdap,
         )
         puntos_cabeceras = resultado_band.puntos_totales
-        for b in resultado_band.banderas:
+        for band in resultado_band.banderas:
             banderas_lista.append(BanderaScoring(
-                origen="cabeceras", codigo=b.codigo, puntos=b.puntos,
+                origen="cabeceras", codigo=band.codigo, puntos=band.puntos,
             ))
     except Exception as exc:
         logger.warning("Banderas degradadas: %s", exc)
@@ -112,22 +117,21 @@ def calcular_score_final(
     puntos_urls = 0
     try:
         resultado_urls: ResultadoURLs = analizar_urls(email_data, deps=deps.deps_urls)
-        for url in resultado_urls.urls:
-            for b in url.banderas:
-                puntos_urls += b.puntos
-                banderas_lista.append(BanderaScoring(
-                    origen="urls", codigo=b.codigo, puntos=b.puntos,
-                ))
+        for band_url in resultado_urls.banderas:
+            puntos_urls += band_url.puntos
+            banderas_lista.append(BanderaScoring(
+                origen="urls", codigo=band_url.codigo, puntos=band_url.puntos,
+            ))
     except Exception as exc:
         logger.warning("URLs degradadas: %s", exc)
 
     # Paso 5: Adjuntos (spec 005, inyectados)
     puntos_adjuntos = 0
     for adj in adjuntos_analizados:
-        for b in adj.banderas:
-            puntos_adjuntos += b.puntos
+        for band_adj in adj.banderas:
+            puntos_adjuntos += band_adj.puntos
             banderas_lista.append(BanderaScoring(
-                origen="adjuntos", codigo=b.codigo, puntos=b.puntos,
+                origen="adjuntos", codigo=band_adj.codigo, puntos=band_adj.puntos,
             ))
 
     # Paso 6: Tope de puntos_banderas

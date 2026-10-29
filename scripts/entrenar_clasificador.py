@@ -17,8 +17,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
-import pandas as pd
-from sklearn.linear_model import LogisticRegression
+import pandas as pd  # type: ignore[import-untyped]
+from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
 
 PROYECTO = Path(__file__).resolve().parent.parent
 CSV_PATH = PROYECTO / "data" / "evaluacion" / "fuente_entrenamiento" / "100correos.csv"
@@ -50,14 +50,14 @@ HIPERPARAMETROS = {
 def sigmoide(z: float) -> float:
     """σ(z) = 1 / (1 + exp(-z))."""
     if z >= 0:
-        return 1.0 / (1.0 + __import__("math").exp(-z))
+        return 1.0 / (1.0 + __import__("math").exp(-z))  # type: ignore[no-any-return]
     ez = __import__("math").exp(z)
-    return ez / (1.0 + ez)
+    return ez / (1.0 + ez)  # type: ignore[no-any-return]
 
 
 def score_desde_genes(coef: dict[str, float], intercept: float, genes: list[int]) -> float:
     """score = 100 × σ(Σ wᵢ·geneᵢ + b)."""
-    z = intercept + sum(coef.get(g, 0.0) * v for g, v in zip(GENES_32, genes))
+    z = intercept + sum(coef.get(g, 0.0) * v for g, v in zip(GENES_32, genes, strict=False))
     return 100.0 * sigmoide(z)
 
 
@@ -103,14 +103,17 @@ def main() -> None:
     print(f"Métricas: accuracy={accuracy:.4f}, recall={recall:.4f}, f1={f1:.4f}")
 
     # 4. Coeficientes
-    coeficientes = {gene: float(w) for gene, w in zip(GENES_32, clf.coef_[0])}
+    coeficientes = {gene: float(w) for gene, w in zip(GENES_32, clf.coef_[0], strict=False)}
     intercepto = float(clf.intercept_[0])
 
     # 5. Verificar AC-SCO-01: 0 genes → score < 30
     score_cero = score_desde_genes(coeficientes, intercepto, [0] * 32)
     print(f"Score con 0 genes: {score_cero:.2f}")
     if score_cero >= 30:
-        print("AC-SCO-01 FALLA: score con 0 genes >= 30. Reentrenando con class_weight='balanced'...")
+        print(
+            "AC-SCO-01 FALLA: score con 0 genes >= 30. "
+            "Reentrenando con class_weight='balanced'..."
+        )
         clf = LogisticRegression(
             solver=HIPERPARAMETROS["solver"],
             C=HIPERPARAMETROS["C"],
@@ -119,7 +122,7 @@ def main() -> None:
             class_weight="balanced",
         )
         clf.fit(X, y)
-        coeficientes = {gene: float(w) for gene, w in zip(GENES_32, clf.coef_[0])}
+        coeficientes = {gene: float(w) for gene, w in zip(GENES_32, clf.coef_[0], strict=False)}
         intercepto = float(clf.intercept_[0])
         y_pred = clf.predict(X)
         tp = int(((y == 1) & (y_pred == 1)).sum())

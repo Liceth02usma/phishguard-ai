@@ -7,7 +7,6 @@ cuando ningún gen se activa.
 from __future__ import annotations
 
 import pytest
-
 from src.level3_logic.modelo import cargar_modelo, predecir_probabilidad
 
 RUTA_JSON = (

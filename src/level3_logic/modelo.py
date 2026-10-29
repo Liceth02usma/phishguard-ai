@@ -8,11 +8,10 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from pydantic import BaseModel, model_validator
-
 from src.level3_logic.genetic_logic import MAPEO_INDICES
 
 PROYECTO = Path(__file__).resolve().parent.parent.parent
@@ -131,7 +130,7 @@ def predecir_probabilidad(modelo: ClasificadorLineal, genes: Sequence[int]) -> f
         Probabilidad en [0, 1].
     """
     z = modelo.intercepto
-    for nombre, valor in zip(MAPEO_INDICES, genes):
+    for nombre, valor in zip(MAPEO_INDICES, genes, strict=False):
         z += modelo.coeficientes.get(nombre, 0.0) * valor
     # Sigmoide numéricamente estable
     if z >= 0:

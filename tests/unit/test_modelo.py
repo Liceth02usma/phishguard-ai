@@ -10,7 +10,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from src.level3_logic.genetic_logic import MAPEO_INDICES
 from src.level3_logic.modelo import (
     ClasificadorLineal,
@@ -20,11 +19,12 @@ from src.level3_logic.modelo import (
     predecir_probabilidad,
 )
 
-RUTA_JSON = Path(__file__).resolve().parent.parent.parent / "data" / "modelo" / "clasificador_v1.json"
+PROYECTO = Path(__file__).resolve().parent.parent.parent
+RUTA_JSON = PROYECTO / "data" / "modelo" / "clasificador_v1.json"
 
 
 @pytest.fixture(autouse=True)
-def _limpiar_cache() -> None:
+def _limpiar_cache() -> None:  # type: ignore[misc]
     """Invalida el cache antes y después de cada prueba."""
     invalidate_cache()
     yield
@@ -88,7 +88,7 @@ class TestCache:
 
     def test_cache_ruta_distinta_recarga(self, tmp_path: Path) -> None:
         """Si la ruta cambia, se recarga (no usa cache de ruta anterior)."""
-        m1 = cargar_modelo(RUTA_JSON)
+        cargar_modelo(RUTA_JSON)
         # Crear un segundo JSON válido
         datos = json.loads(RUTA_JSON.read_text(encoding="utf-8"))
         datos["version"] = "clasificador_v2"

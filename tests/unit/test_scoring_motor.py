@@ -5,11 +5,6 @@ Cero red real (Art. II.5). Dobles de 003/004/005.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock
-
-import pytest
-
 from src.level2_agent.banderas.modelos import TOPE_PUNTOS_BANDERAS
 from src.level2_agent.models import EmailData
 

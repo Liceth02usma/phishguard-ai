@@ -6,9 +6,7 @@ incluida FR-005 (genes 0 y 28 condicionados a listas).
 
 from __future__ import annotations
 
-import pytest
-
-from src.level3_logic.genetic_logic import evaluate, MAPEO_INDICES
+from src.level3_logic.genetic_logic import evaluate
 
 
 def _email(**overrides: object) -> dict[str, object]:

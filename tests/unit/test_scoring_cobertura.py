@@ -7,16 +7,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
+from src.level2_agent.banderas.modelos import TOPE_PUNTOS_BANDERAS
+from src.level3_logic.scoring.configuracion import PROVEEDORES_CONFIANZA_POR_DEFECTO, ConfigScoring
 from src.level3_logic.scoring.modelos import (
     BanderaScoring,
-    GenImplicado,
     ModeloError,
     ScoreFinal,
     ScoringError,
 )
-from src.level3_logic.scoring.configuracion import ConfigScoring, PROVEEDORES_CONFIANZA_POR_DEFECTO
-from src.level2_agent.banderas.modelos import TOPE_PUNTOS_BANDERAS
 
 
 class TestScoringError:

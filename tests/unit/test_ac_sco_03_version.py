@@ -5,16 +5,17 @@ El reporte debe incluir version_modelo y score_clasificador.
 
 from __future__ import annotations
 
-import pytest
-
-from src.level3_logic.modelo import cargar_modelo, invalidate_cache
 from pathlib import Path
 
-RUTA_JSON = Path(__file__).resolve().parent.parent.parent / "data" / "modelo" / "clasificador_v1.json"
+import pytest
+from src.level3_logic.modelo import cargar_modelo, invalidate_cache
+
+PROYECTO = Path(__file__).resolve().parent.parent.parent
+RUTA_JSON = PROYECTO / "data" / "modelo" / "clasificador_v1.json"
 
 
 @pytest.fixture(autouse=True)
-def _limpiar_cache() -> None:
+def _limpiar_cache() -> None:  # type: ignore[misc]
     invalidate_cache()
     yield
     invalidate_cache()

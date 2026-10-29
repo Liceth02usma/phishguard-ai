@@ -5,8 +5,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .modelos import ScoringError
-
 PROYECTO = Path(__file__).resolve().parent.parent.parent.parent
 RUTA_MODELO_POR_DEFECTO = PROYECTO / "data" / "modelo" / "clasificador_v1.json"
 

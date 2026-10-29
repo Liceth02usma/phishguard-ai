@@ -34,3 +34,6 @@ tldextract==5.4.0
 filetype==1.2.0
 oletools==0.60.2
 pypdf==6.21.2
+
+# Integracion VirusTotal API v3 (spec 006, modulo M06)
+httpx==0.28.1

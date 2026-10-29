@@ -65,7 +65,8 @@ def test_positivo_por_codigo(
 
     assert codigo in resultado.urls[0].codigos
     bandera = next(b for b in resultado.banderas if b.codigo == codigo)
-    severidad, puntos = CATALOGO_URL[codigo]
+    # `codigo` llega como literal del catálogo (parametrize); el índice evita el cast.
+    severidad, puntos = CATALOGO_URL[codigo]  # type: ignore[index]
     assert bandera.severidad == severidad
     assert bandera.puntos == puntos
 

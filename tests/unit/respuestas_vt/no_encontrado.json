@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "NotFoundError",
+    "message": "El recurso solicitado no existe",
+    "url": "https://www.virustotal.com/api/v3/files/{id_recurso}"
+  }
+}

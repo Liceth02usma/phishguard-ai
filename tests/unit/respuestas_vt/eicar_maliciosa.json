@@ -1,0 +1,17 @@
+{
+  "data": {
+    "type": "file",
+    "id": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+    "attributes": {
+      "last_analysis_stats": {
+        "malicious": 60,
+        "suspicious": 2,
+        "harmless": 0,
+        "undetected": 6,
+        "timeout": 0
+      },
+      "names": ["eicar_com.txt"],
+      "type_description": "Texto"
+    }
+  }
+}

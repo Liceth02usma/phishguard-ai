@@ -1,92 +1,94 @@
-"""Pruebas de ConfigBanderas: env, defaults D9 y fail-fast (T006, Art. III.9)."""
+"""Configuración desde variables de entorno (research D9 + clarify FR-002)."""
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-
 import pytest
-from src.level2_agent.banderas.configuracion import (
-    DEFAULT_DOMINIOS_GRATUITOS,
-    ConfigBanderas,
-    ConfiguracionError,
-)
-
-_VARIABLES_ENTORNO = (
-    "AUTHSERV_ID",
-    "DOMINIOS_PROPIOS",
-    "MARCAS_PROTEGIDAS",
-    "CONTACTOS_INTERNOS",
-    "TERMINOS_INTERNOS",
-    "DOMINIOS_GRATUITOS",
-    "PROVEEDORES_ENVIO",
-)
+from src.level2_agent.virustotal import ConfiguracionError, ConfigVT
 
 
-@pytest.fixture
-def entorno_limpio(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Garantiza que las 7 variables M03 no vienen del entorno del desarrollador."""
-    for variable in _VARIABLES_ENTORNO:
-        monkeypatch.delenv(variable, raising=False)
-    yield
+@pytest.mark.ac("AC-VT-02")
+def test_premium_sin_rpm_daily_usa_defaults_public() -> None:
+    """Clarify FR-002: premium sin VT_RPM/VT_DAILY → 4/min y 500/día (defaults públicos)."""
+    config = ConfigVT.desde_entorno({"VT_TIER": "premium"})
+    assert config.tier == "premium"
+    assert config.rpm == 4
+    assert config.tope_dia == 500
 
 
-def test_defaults_con_entorno_vacio(entorno_limpio: None) -> None:
-    """authserv-id vacio (conservador) y los dominios gratuitos por defecto (D9)."""
-    config = ConfigBanderas.desde_entorno()
-    assert config.authserv_id == ""
-    assert config.dominios_gratuitos == DEFAULT_DOMINIOS_GRATUITOS
-    assert config.marcas_protegidas == frozenset()
-    assert config.dominios_propios == frozenset()
-    assert config.contactos_internos == frozenset()
-    assert config.terminos_internos == frozenset()
-    assert config.proveedores_envio == frozenset()
+@pytest.mark.ac("AC-VT-02")
+def test_premium_con_limites_explicitos_los_respeta() -> None:
+    """Clarify FR-002: premium solo eleva cuando se configura explícitamente."""
+    config = ConfigVT.desde_entorno(
+        {"VT_TIER": "premium", "VT_RPM": "30", "VT_DAILY": "10000"}
+    )
+    assert config.rpm == 30
+    assert config.tope_dia == 10000
 
 
-def test_listas_por_coma_en_minusculas(
-    entorno_limpio: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Las listas env llegan separadas por coma y se normalizan a minusculas."""
-    monkeypatch.setenv("AUTHSERV_ID", "  Mail.Empresa.COM ")
-    monkeypatch.setenv("MARCAS_PROTEGIDAS", "PayPal.com, EJEMPLO.COM , , foo.net")
-    monkeypatch.setenv("TERMINOS_INTERNOS", "Ayuda Interna, SOPORTE 24/7")
-    config = ConfigBanderas.desde_entorno()
-    assert config.authserv_id == "mail.empresa.com"
-    assert config.marcas_protegidas == frozenset({"paypal.com", "ejemplo.com", "foo.net"})
-    assert config.terminos_internos == frozenset({"ayuda interna", "soporte 24/7"})
+@pytest.mark.ac("AC-VT-02")
+def test_public_con_defaults() -> None:
+    """VT_TIER vacío o public conserva 4/500 y flags apagados."""
+    assert ConfigVT.desde_entorno({}).tier == "public"
+    config = ConfigVT.desde_entorno({"VT_TIER": "public"})
+    assert (config.rpm, config.tope_dia) == (4, 500)
+    assert config.upload_unknown is False
+    assert config.submit_unknown_urls is False
+    assert config.max_por_correo == 10
 
 
-def test_dominios_gratuitos_sustituibles_desde_entorno(
-    entorno_limpio: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """DOMINIOS_GRATUITOS de env reemplaza el default (D9)."""
-    monkeypatch.setenv("DOMINIOS_GRATUITOS", "correo.uno.com,dos.cl")
-    config = ConfigBanderas.desde_entorno()
-    assert config.dominios_gratuitos == frozenset({"correo.uno.com", "dos.cl"})
-
-
-@pytest.mark.parametrize(
-    "valor_invalido",
-    ["https://x.com", "x.com/ruta", "dominio con espacio", "sub.dominio..com", "-x.com"],
-)
-def test_dominios_invalidos_lanzan_configuracion_error(valor_invalido: str) -> None:
-    """Un dominio con esquema, ruta, espacios o forma rara es fail-fast (Art. III.9)."""
+@pytest.mark.ac("AC-VT-02")
+@pytest.mark.parametrize("tier", ["free", "business", "Public ", "PREMIUM"])
+def test_tier_inválido_lanza_configuracion_error(tier: str) -> None:
+    """VT_TIER fuera de {public, premium} → ConfiguracionError antes de consultar (III.9)."""
     with pytest.raises(ConfiguracionError):
-        ConfigBanderas(marcas_protegidas=[valor_invalido])
+        ConfigVT.desde_entorno({"VT_TIER": tier})
 
 
+@pytest.mark.ac("AC-VT-02")
 @pytest.mark.parametrize(
-    "authserv_invalido",
-    ["https://pasarela.com", "pasarela.com con espacio", "pasarela.com/ruta"],
+    ("variable", "valor"),
+    [
+        ("VT_MAX_POR_CORREO", "cero"),
+        ("VT_MAX_POR_CORREO", "0"),
+        ("VT_RPM", "0"),
+        ("VT_RPM", "-1"),
+        ("VT_DAILY", "-5"),
+        ("VT_UMBRAL_MALICIOSA", "0"),
+    ],
 )
-def test_authserv_invalido_lanza_configuracion_error(authserv_invalido: str) -> None:
-    """authserv-id con esquema, ruta o espacios es fail-fast (Art. III.9)."""
+def test_enteros_inválidos_lanzan_configuracion_error(variable: str, valor: str) -> None:
+    """Valor no numérico o fuera de rango → ConfiguracionError antes de consultar (III.9)."""
     with pytest.raises(ConfiguracionError):
-        ConfigBanderas(authserv_id=authserv_invalido)
+        ConfigVT.desde_entorno({variable: valor})
 
 
-def test_authserv_none_y_punto_final(entorno_limpio: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    """AUTHSERV_ID vacio/ausente -> ""; el punto final se recorta."""
-    monkeypatch.setenv("AUTHSERV_ID", "Pasarela.Externa. ")
-    config = ConfigBanderas.desde_entorno()
-    assert config.authserv_id == "pasarela.externa"
-    assert ConfigBanderas(authserv_id=None).authserv_id == ""
+@pytest.mark.ac("AC-VT-02")
+@pytest.mark.parametrize(
+    ("valor", "esperado"),
+    [
+        ("true", True),
+        ("True", True),
+        ("1", True),
+        ("YES", True),
+        ("false", False),
+        ("0", False),
+        ("", False),
+    ],
+)
+def test_booleanos_true_1_yes_case_insensitive(valor: str, esperado: bool) -> None:
+    """'true'/'1'/'yes' en cualquier mayúscula → True; cualquier otra cosa → False (D9)."""
+    config = ConfigVT.desde_entorno(
+        {"VT_UPLOAD_UNKNOWN": valor, "VT_SUBMIT_UNKNOWN_URLS": valor}
+    )
+    assert config.upload_unknown is esperado
+    assert config.submit_unknown_urls is esperado
+
+
+@pytest.mark.ac("AC-VT-07")
+def test_api_key_no_serializa_ni_repr() -> None:
+    """La clave no aparece en repr ni en la serialización (FR-009, AC-VT-07)."""
+    config = ConfigVT.desde_entorno({"VT_API_KEY": "secreta-12345"})
+    assert config.api_key == "secreta-12345"
+    assert "secreta-12345" not in repr(config)
+    assert "secreta-12345" not in str(config.model_dump())
+    assert "api_key" not in config.model_dump()

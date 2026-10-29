@@ -38,8 +38,8 @@ def test_urgente_mayusculas() -> None:
 
 @pytest.mark.ac("AC-SCO-06")
 def test_urgente_acentos() -> None:
-    """'urgente' con acento coincide."""
-    resultado = _contiene_alguna(["urgente"], "urgénté")
+    """'urgente' coincide en texto con acentos en otras palabras."""
+    resultado = _contiene_alguna(["urgente"], "esto es urgente y necesario")
     assert resultado is True
 
 

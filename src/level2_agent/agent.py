@@ -140,23 +140,26 @@ def _parse_agent_response(ai_content: str) -> PhishingReport:
 
 
 def _genetic_score(email_data: EmailData) -> dict:
+    """Calcula el score final usando el clasificador lineal + banderas (spec 007)."""
     try:
-        from src.level3_logic.genetic_logic import evaluate as genetic_evaluate
-        data = {
-            "htmlBody": email_data.htmlBody,
-            "textBody": email_data.textBody,
-            "subject": email_data.subject,
-            "recipient": email_data.recipient,
-            "headers": email_data.headers,
+        from src.level3_logic.scoring import calcular_score_final, ModeloError
+        resultado = calcular_score_final(email_data)
+        return {
+            "score": resultado.score_final,
+            "score_clasificador": resultado.score_clasificador,
+            "genes_implicados": [
+                {"caracteristica": g.caracteristica, "peso": g.peso}
+                for g in resultado.genes_implicados
+            ],
+            "version_modelo": resultado.version_modelo,
+            "puntos_banderas": resultado.puntos_banderas,
         }
-        result = genetic_evaluate(data)
-        return result
     except ImportError:
-        logger.warning("level3_logic.genetic_logic no disponible. Usando score fallback=%s", SCORE_FALLBACK)
-        return {"score": SCORE_FALLBACK, "genes_implicados": []}
+        logger.warning("level3_logic.scoring no disponible. Usando score fallback=%s", SCORE_FALLBACK)
+        return {"score": SCORE_FALLBACK, "genes_implicados": [], "version_modelo": "indeterminada"}
     except Exception as e:
-        logger.error("Error en genetic_logic: %s. Usando score fallback=%s", e, SCORE_FALLBACK)
-        return {"score": SCORE_FALLBACK, "genes_implicados": []}
+        logger.error("Error en scoring: %s. Usando score fallback=%s", e, SCORE_FALLBACK)
+        return {"score": SCORE_FALLBACK, "genes_implicados": [], "version_modelo": "indeterminada"}
 
 
 def generate_benign_report(score: float) -> PhishingReport:
@@ -192,14 +195,20 @@ def analyze_email(email_data: EmailData) -> PhishingReport:
     genetic_result = _genetic_score(email_data)
     score = genetic_result["score"]
     genes = genetic_result.get("genes_implicados", [])
+    version_modelo = genetic_result.get("version_modelo")
+    score_clasificador = genetic_result.get("score_clasificador")
 
     if score < SCORE_UMBRAL_BAJO:
         logger.info("Score %s < %s → ruta benigna", score, SCORE_UMBRAL_BAJO)
         report = generate_benign_report(score)
+        report.score_clasificador = score_clasificador
+        report.version_modelo = version_modelo
 
     elif score > SCORE_UMBRAL_ALTO:
         logger.info("Score %s > %s → ruta maliciosa", score, SCORE_UMBRAL_ALTO)
         report = generate_malicious_report(score, genes)
+        report.score_clasificador = score_clasificador
+        report.version_modelo = version_modelo
 
     else:
         logger.info("Score %s entre %s-%s → ruta AI Agent (ReAct)", score, SCORE_UMBRAL_BAJO, SCORE_UMBRAL_ALTO)
@@ -228,6 +237,8 @@ def analyze_email(email_data: EmailData) -> PhishingReport:
 
             logger.debug("Agent final_msg type=%s content=%s", type(final_msg).__name__, final_msg.content[:500] if final_msg.content else "(empty)")
             report = _parse_agent_response(final_msg.content)
+            report.score_clasificador = score_clasificador
+            report.version_modelo = version_modelo
 
         except Exception as e:
             logger.error("Error en ReAct Agent: %s", e)

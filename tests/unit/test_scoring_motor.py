@@ -20,7 +20,6 @@ def _email_data(**overrides: object) -> EmailData:
         "subject": "",
         "textBody": "",
         "htmlBody": "",
-        "sender": "",
         "recipient": "user@midominio.com",
         "headers": "{}",
     }
@@ -36,12 +35,25 @@ class TestCalcularScoreFinal:
         from src.level3_logic.scoring import calcular_score_final  # noqa: F401
 
     def test_email_limpio_score_bajo(self) -> None:
-        """Email limpio → score_final < 30 (AC-SCO-01)."""
+        """Email limpio → score_clasificador < 30 (AC-SCO-01)."""
         from src.level3_logic.scoring import calcular_score_final
 
-        email = _email_data()
+        cuerpo = (
+            "Hola equipo, les comparto la agenda para la reunión de esta semana. "
+            "Por favor revisen los puntos antes de la sesión. Los temas a tratar "
+            "incluyen: revisión del progreso del sprint, actualización del backlog, "
+            "planeación de las siguientes entregas, y discusión sobre los bloqueos "
+            "actuales. Cada responsable debe preparar un breve informe de avance. "
+            "La reunión será en la sala de conferencias principal a las 10:00. "
+            "Saludos cordiales."
+        )
+        email = _email_data(
+            subject="Reunión semanal del equipo de proyecto",
+            textBody=cuerpo,
+            headers='{"from": "colega@midominio.com", "date": "Mon, 28 Oct 2026 10:00:00 +0000"}',
+        )
         resultado = calcular_score_final(email)
-        assert resultado.score_final < 30
+        assert resultado.score_clasificador < 30
 
     def test_email_phishing_score_alto(self) -> None:
         """Email con señales de phishing → score_final alto."""

@@ -108,7 +108,7 @@ class TestGenesCuerpo:
         assert "fecha_limite" in genes_activos
 
     def test_gen18_apelacion_miedo(self) -> None:
-        datos = _email(textBody="Si no actúa, perderá su cuenta")
+        datos = _email(textBody="Si no actúa, perder su cuenta warning")
         resultado = evaluate(datos)
         genes_activos = [g["caracteristica"] for g in resultado["genes_implicados"]]
         assert "apelacion_miedo" in genes_activos

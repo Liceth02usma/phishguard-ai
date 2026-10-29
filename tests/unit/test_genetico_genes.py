@@ -171,8 +171,8 @@ class TestFR005ListasConfianza:
     def test_gen0_no_activa_con_dominio_confianza(self) -> None:
         """Si el dominio del remitente está en proveedores_confianza,
         gen 0 (dominio_externo) NO se activa aunque sea externo."""
-        from src.level3_logic.modelo import cargar_modelo
         from src.level3_logic.genetic_logic import ConfigGenetico
+        from src.level3_logic.modelo import cargar_modelo
         modelo = cargar_modelo()
         config = ConfigGenetico(
             modelo=modelo,
@@ -189,8 +189,8 @@ class TestFR005ListasConfianza:
     def test_gen0_activa_con_dominio_desconocido(self) -> None:
         """Si el dominio del remitente NO está en listas,
         gen 0 (dominio_externo) SÍ se activa."""
-        from src.level3_logic.modelo import cargar_modelo
         from src.level3_logic.genetic_logic import ConfigGenetico
+        from src.level3_logic.modelo import cargar_modelo
         modelo = cargar_modelo()
         config = ConfigGenetico(
             modelo=modelo,

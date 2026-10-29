@@ -100,10 +100,15 @@ def agregar_resultados(
 def _run(argv: list[str], timeout: int = 120) -> tuple[bool, str]:
     """Ejecuta un comando y devuelve (ok, salida_truncada)."""
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        proc = subprocess.run(
+            argv, capture_output=True, text=True, timeout=timeout,
+            encoding="utf-8", errors="replace",
+        )
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
         return False, str(exc)
-    return proc.returncode == 0, (proc.stdout + proc.stderr)[-500:]
+    stdout = proc.stdout or ""
+    stderr = proc.stderr or ""
+    return proc.returncode == 0, (stdout + stderr)[-500:]
 
 
 def _compuerta_longitud() -> ResultadoCompuerta:

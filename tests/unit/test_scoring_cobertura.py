@@ -11,7 +11,6 @@ from src.level2_agent.banderas.modelos import TOPE_PUNTOS_BANDERAS
 from src.level3_logic.scoring.configuracion import PROVEEDORES_CONFIANZA_POR_DEFECTO, ConfigScoring
 from src.level3_logic.scoring.modelos import (
     BanderaScoring,
-    ModeloError,
     ScoreFinal,
     ScoringError,
 )

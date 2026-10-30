@@ -14,7 +14,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from .config import RATE_LIMIT_POR_MINUTO
-from .errors import DemasiadasSolicitudesError, ErrorDetail, ErrorEnvelope
+from .errors import ErrorDetail, ErrorEnvelope
 
 
 class RateLimiter(BaseHTTPMiddleware):

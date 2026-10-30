@@ -7,11 +7,12 @@ AC-API-10: caída VT → 201 con revision_manual.
 
 from __future__ import annotations
 
+import io
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
 from src.api.csv_export import generar_csv
@@ -25,7 +26,7 @@ from src.api.schemas.analisis import (
     FeedbackRequest,
 )
 from src.api.config import LIMITE_PAGINACION_DEFAULT, LIMITE_PAGINACION_MAX
-from src.api.schemas.comunes import Severidad, Veredicto
+from src.api.schemas.comunes import Veredicto
 from src.level2_agent.persistencia.borrado import borrar_analisis
 from src.level2_agent.persistencia.guardado import guardar_analisis
 from src.level2_agent.persistencia.modelos import AnalisisPersistido
@@ -37,7 +38,6 @@ def _persistido_a_response(doc: dict[str, Any]) -> AnalisisResponse:
     """Convierte un documento persistido a AnalisisResponse."""
     from src.api.schemas.analisis import (
         AccionResponse,
-        AutenticacionResponse,
         CorreoResponse,
         ResultadoResponse,
     )
@@ -122,7 +122,6 @@ async def post_analyses(
 
     # Persistir
     ahora = datetime.now(tz=timezone.utc)
-    from datetime import timedelta
 
     analisis_p = AnalisisPersistido(
         message_id=msg_id,
@@ -141,7 +140,10 @@ async def post_analyses(
     )
     guardar_analisis(analisis_p, repo=repo)
 
-    return _persistido_a_response(analisis_p.model_dump(mode="json"))
+    resp = _persistido_a_response(analisis_p.model_dump(mode="json"))
+    # Inyectar resumen en la respuesta
+    resp.resultado.resumen = resumen  # type: ignore[union-attr]
+    return resp
 
 
 @router.get("", response_model=AnalisisPaginadoResponse)
@@ -180,8 +182,6 @@ async def export_csv(
     docs = repo.listar({})
     items = [_persistido_a_response(d) for d in docs]
     csv_content = generar_csv(items)
-
-    import io
 
     return StreamingResponse(
         io.BytesIO(csv_content.encode("utf-8")),

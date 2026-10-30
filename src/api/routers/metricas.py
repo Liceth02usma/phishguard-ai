@@ -28,8 +28,6 @@ async def get_metrics_summary(
     rango: Rango = Query(description="Rango de métricas (7d, 30d, 90d)"),
 ) -> MetricasResponse:
     """KPI del tablero para un rango (AC-API-05)."""
-    from datetime import datetime, timezone
-
     hoy = date(2026, 10, 30)  # simplificado; en prod usar date.today()
     dias = _RANGO_DIAS[rango]
     inicio = hoy - timedelta(days=dias - 1)

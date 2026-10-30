@@ -117,6 +117,12 @@ module = ["src.level2_agent.persistencia", "src.level2_agent.persistencia.*"]
 ignore_errors = false
 strict = true
 
+# Spec 012: el paquete api/ se type-checkea estricto (Art. III.4/IV.1d).
+[[tool.mypy.overrides]]
+module = ["src.api", "src.api.*"]
+ignore_errors = false
+strict = true
+
 # Dependencias de spec 006 sin stubs de tipo (Art. III.8: deps fijadas).
 [[tool.mypy.overrides]]
 module = ["httpx.*", "httpcore.*"]

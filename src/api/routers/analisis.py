@@ -45,10 +45,14 @@ def _persistido_a_response(doc: dict[str, Any]) -> AnalisisResponse:
     correo = doc.get("correo_enmascarado", {})
     resultado = doc.get("resultado", {})
 
+    # Mapear modo de persistencia a modo de API
+    modo_raw = doc.get("modo", "produccion")
+    modo_api = "pegar" if modo_raw in ("produccion", "dry_run") else modo_raw
+
     return AnalisisResponse(
         id=str(doc.get("message_id", "")),
         origen=doc.get("origen", "api"),
-        modo=doc.get("modo", "pegar"),
+        modo=modo_api,
         creado_en=doc.get("fecha", datetime.now(tz=timezone.utc)),
         duracion_ms=doc.get("duracion_ms", 0),
         correo=CorreoResponse(
@@ -66,7 +70,7 @@ def _persistido_a_response(doc: dict[str, Any]) -> AnalisisResponse:
         ),
         accion=AccionResponse(
             ejecutada=doc.get("accion"),
-            simulada=doc.get("modo") == "dry_run" or doc.get("accion") is None,
+            simulada=modo_raw == "dry_run",
         ),
         retroalimentacion=doc.get("retroalimentacion"),
     )

@@ -390,6 +390,29 @@ resultado.procesado  # True
 python -m pytest tests/unit/ -k "act"
 ```
 
+### Persistencia y Métricas (`persistencia/`, spec 011)
+
+Cada análisis se persiste en MongoDB con retención TTL (90 días), sin HTML original ni adjuntos, con correo enmascarado. Métricas (total, por veredicto, % sin modelo, duración media, por día, indicadores frecuentes, tasa de FP, consultas VT y aciertos caché) se calculan sobre los datos.
+
+1. **Retención TTL**: `analyses` (90 días), `analyses_fallidos` (30 días), `vt_cache` (7 días).
+2. **Sin HTML ni adjuntos**: el documento persistido jamás contiene `htmlBody` ni `contenido` de adjunto (FR-002).
+3. **Métricas puras**: `calcular_metricas()` es función pura — cero I/O, recibe lista de análisis.
+4. **Siembra determinista**: 100 análisis (55 sin_indicadores, 15 sospechoso, 30 malicioso; 60% sin IA) por fórmula sin aleatoriedad.
+5. **Borrado con caché**: eliminar un análisis también elimina su caché VT asociada.
+6. **Zona horaria**: agrupación `por_dia` en `America/Bogota`, con días en cero.
+
+```python
+from src.level2_agent.persistencia import guardar_analisis, calcular_metricas, AnalisisPersistido
+
+msg_id = guardar_analisis(analisis)
+metricas = calcular_metricas(lista_analisis)
+```
+
+```powershell
+# Pruebas del módulo (23 — sin MongoDB real)
+python -m pytest tests/unit/ -k "per"
+```
+
 ## Dependencias principales
 
 - **LangChain / LangGraph** — Framework de agentes y cadenas LLM

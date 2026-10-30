@@ -96,8 +96,6 @@ def _generar_analisis_siembra(
     for i in range(SIEMBRA_TOTAL):
         dias_atras = RETENCION_ANALISIS_DIAS - i
         fecha = ahora - timedelta(days=dias_atras)
-        # Ajustar a zona horaria local
-        fecha_local = fecha.astimezone(tz_obj)
 
         veredicto = veredictos[i]
         ruta = rutas[i]

@@ -7,7 +7,7 @@ Recibe lista de AnalisisPersistido, retorna Metricas.
 from __future__ import annotations
 
 from collections import Counter
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 import pytz
 

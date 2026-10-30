@@ -11,18 +11,12 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from .modelos import (
     COLECCION_ANALISIS,
     COLECCION_FALLIDOS,
     COLECCION_VT_CACHE,
-    RETENCION_ANALISIS_DIAS,
-    RETENCION_FALLIDOS_DIAS,
-    RETENCION_PROCESADOS_DIAS,
-    RETENCION_VT_CACHE_DIAS,
-    RETENCION_VT_CUOTA_DIAS,
 )
 
 logger = logging.getLogger(__name__)

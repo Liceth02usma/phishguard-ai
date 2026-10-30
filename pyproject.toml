@@ -105,6 +105,12 @@ module = ["src.level2_agent.agente", "src.level2_agent.agente.*"]
 ignore_errors = false
 strict = true
 
+# Spec 010: el paquete acciones/ se type-checkea estricto (Art. III.4/IV.1d).
+[[tool.mypy.overrides]]
+module = ["src.level2_agent.acciones", "src.level2_agent.acciones.*"]
+ignore_errors = false
+strict = true
+
 # Dependencias de spec 006 sin stubs de tipo (Art. III.8: deps fijadas).
 [[tool.mypy.overrides]]
 module = ["httpx.*", "httpcore.*"]

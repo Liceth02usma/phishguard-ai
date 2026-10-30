@@ -365,6 +365,31 @@ resultado.razon               # exito / tope_superado / validacion_fallida
 python -m pytest tests/unit/ -k "agt"
 ```
 
+### Acciones Idempotentes en Gmail y Jira (`acciones/`, spec 010)
+
+Tras el veredicto del motor de decisión, código determinista ejecuta acciones sobre Gmail (etiquetar, archivar, marcar leído) y Jira (crear ticket por campaña) según una tabla de mapeo.
+
+1. **Tabla de mapeo**: `malicioso` → etiquetar phishing + archivar + ticket; `sospechoso`/`revision_manual` → etiquetar revisar + ticket baja; `sin_indicadores` → marcar leído.
+2. **DRY_RUN** (activo por defecto, Art. V.2): registra lo que habría hecho sin tocar Gmail ni Jira.
+3. **Idempotencia**: por `message_id` — procesar el mismo correo dos veces no repite acciones.
+4. **Huella de campaña**: SHA-256(remitente + asunto normalizado + dominios URLs) para deduplicar tickets Jira.
+5. **Nunca elimina correos**: la tabla no incluye acciones de eliminación; OAuth scopes mínimos.
+6. **Resiliencia**: si Jira falla, Gmail se mantiene; error se registra; no bucle de reintento.
+7. **Auditoría**: cada acción registra `accion`, `destino`, `ejecutada`, `motivo`, `timestamp`.
+
+```python
+from src.level2_agent.acciones import ejecutar_acciones, EntradaAcciones
+
+resultado = ejecutar_acciones(entrada)
+resultado.acciones  # [ResultadoAccion(...), ...]
+resultado.procesado  # True
+```
+
+```powershell
+# Pruebas del módulo (22 — sin servicios reales)
+python -m pytest tests/unit/ -k "act"
+```
+
 ## Dependencias principales
 
 - **LangChain / LangGraph** — Framework de agentes y cadenas LLM

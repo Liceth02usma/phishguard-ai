@@ -229,6 +229,60 @@ def analyze_email(email_data: EmailData) -> PhishingReport:
             email_data, score, genes, score_clasificador, version_modelo
         )
         report.score_clasificador = score_clasificador
-        report.version_modelo = version_modelo
-
     return report
+
+
+def construir_analisis_persistido(
+    email_data: EmailData,
+    report: PhishingReport,
+    *,
+    message_id: str,
+    origen: str = "gmail",
+    modo: str = "produccion",
+    duracion_ms: int = 0,
+    score_final: int = 0,
+    ruta: str = "heuristica",
+    veredicto: str = "sin_indicadores",
+    nivel_severidad: str = "Bajo",
+    banderas: list[str] | None = None,
+    reglas_aplicadas: list[str] | None = None,
+    version_pesos: str = "v1",
+    version_modelo: str = "indeterminada",
+) -> object:
+    """Construye un AnalisisPersistido desde el resultado del pipeline (T027).
+
+    Función helper para que el poller/API puedan persistir sin importar
+    detalles internos del modelo.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from .persistencia.modelos import AnalisisPersistido
+
+    ahora = datetime.now(tz=timezone.utc)
+    correo_enmascarado = enmascarar_para_terceros(email_data)
+
+    return AnalisisPersistido(
+        message_id=message_id,
+        origen=origen,  # type: ignore[arg-type]
+        modo=modo,  # type: ignore[arg-type]
+        fecha=ahora,
+        duracion_ms=duracion_ms,
+        correo_enmascarado=correo_enmascarado.model_dump()
+        if hasattr(correo_enmascarado, "model_dump")
+        else correo_enmascarado,
+        score_final=score_final,
+        ruta=ruta,  # type: ignore[arg-type]
+        veredicto=veredicto,  # type: ignore[arg-type]
+        nivel_severidad=nivel_severidad,  # type: ignore[arg-type]
+        banderas=banderas or [],
+        reglas_aplicadas=reglas_aplicadas or [],
+        urls=list(email_data.urls) if hasattr(email_data, "urls") else [],
+        adjuntos_nombres=(
+            [a.nombre for a in email_data.adjuntos]
+            if hasattr(email_data, "adjuntos")
+            else []
+        ),
+        version_pesos=version_pesos,
+        version_modelo=version_modelo,
+        expira_en=ahora + timedelta(days=90),
+    )

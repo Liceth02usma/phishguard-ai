@@ -17,6 +17,7 @@ from src.level2_agent.agente.modelos import (
 )
 from src.level2_agent.banderas.modelos import EstadosAutenticacion
 from src.level2_agent.models import EmailData
+from src.level2_agent.virustotal.modelos import ResultadoVT
 from src.level3_logic.scoring.modelos import ScoreFinal
 
 
@@ -89,6 +90,7 @@ def entrada_agente_ejemplo(
     *,
     score: int = 50,
     email_data: EmailData | None = None,
+    resultados_vt: list[ResultadoVT] | None = None,
 ) -> EntradaAgente:
     """Construye una EntradaAgente mínima con valores por defecto."""
     return EntradaAgente(
@@ -102,5 +104,5 @@ def entrada_agente_ejemplo(
         banderas_cabeceras=[],
         estados_autenticacion=EstadosAutenticacion(),
         resultado_adjuntos=[],
-        resultados_vt=[],
+        resultados_vt=resultados_vt or [],
     )

@@ -56,3 +56,13 @@
 - [X] T038: Actualizar README.md con sección API REST
 - [X] T039: Actualizar AGENTS.md con arquitectura de API
 - [X] T040: Marcar tareas completadas en tasks.md
+
+## Phase 6: Convergence
+
+- [ ] T041: Añadir `@pytest.mark.ac("AC-API-NN")` a todos los tests API (Art. II.6, CRITICAL) (missing)
+- [ ] T042: Implementar modo=eml con multipart en POST /api/analyses + AnalisisEmlRequest schema + test AC-API-02 (FR-001, AC-API-02) (missing)
+- [ ] T043: Añadir filtros faltantes a GET /api/analyses: severidad, q, desde, hasta, orden (FR-001) (missing)
+- [ ] T044: Conectar validación 25MB (EntradaGrandeError) al endpoint eml (FR-003) (partial)
+- [ ] T045: Test de contrato OpenAPI: comparar app.openapi() con contracts/openapi.yaml (AC-API-04) (missing)
+- [ ] T046: Test de métricas con fórmulas sobre datos de siembra (AC-API-05) (missing)
+- [ ] T047: Añadir gate de cobertura per-paquete ≥80% para src/api/ en verify.py (Art. II.3) (partial)

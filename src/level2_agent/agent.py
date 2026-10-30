@@ -1,13 +1,17 @@
+"""Pipeline principal de análisis de phishing (refactorizado spec 009).
+
+Flujo:
+1. Score genético (spec 007) → score_final
+2. Si score < 30 → ruta benigna (sin agente)
+3. Si score > 75 → ruta maliciosa (sin agente)
+4. Si 30–75 → agente IA sin estado (spec 009) → motor de decisión (spec 008)
+5. Veredicto final → PhishingReport
+"""
+
 import logging
 import os
-import re
 
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.tools import StructuredTool
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langgraph.prebuilt import create_react_agent
 
 from .models import (
     SCORE_FALLBACK,
@@ -20,129 +24,16 @@ from .models import (
     PhishingReport,
 )
 from .normalizacion import enmascarar_para_terceros
-from .prompts import HUMAN_TEMPLATE, _build_system_prompt
-from .tools import create_retriever
-from .tools.ip_reputation import ip_reputation_tool
-from .tools.jira_integration import create_jira_ticket
 
 load_dotenv()
 logger = logging.getLogger(__name__)
-
-llm: ChatGoogleGenerativeAI | None = None
-react_agent = None
-
-
-def _ensure_llm():
-    global llm
-    if llm is None:
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("GOOGLE_API_KEY no está configurada")
-        llm = ChatGoogleGenerativeAI(
-            model="models/gemini-2.5-flash-lite",
-            temperature=0,
-        )
-    return llm
-
-
-def _create_rag_tool() -> StructuredTool:
-    def _rag_search(query: str) -> str:
-        try:
-            retriever = create_retriever()
-        except Exception as e:
-            logger.warning("No se pudo crear el retriever RAG: %s", e)
-            return "No disponible. Procede con tu conocimiento base."
-        try:
-            docs = retriever.invoke(query)
-            if not docs:
-                return "No se encontraron documentos relevantes en la base vectorial."
-            return "\n\n".join(doc.page_content for doc in docs)
-        except Exception as e:
-            logger.warning("Error al recuperar contexto RAG: %s", e)
-            return "Error al consultar la base vectorial. Procede con tu conocimiento base."
-
-    return StructuredTool.from_function(
-        name="consultar_base_vectorial",
-        description=(
-            "Consulta la base de datos vectorial de ciberseguridad "
-            "(NIST SP 800-53 / OWASP) buscando controles y guías "
-            "relacionados con patrones de phishing. Recibe una consulta "
-            "textual descriptiva y devuelve documentos relevantes."
-        ),
-        func=_rag_search,
-    )
-
-
-def _build_react_agent():
-    model = _ensure_llm()
-
-    tools = []
-    try:
-        tools.append(_create_rag_tool())
-    except Exception as e:
-        logger.warning("No se pudo crear el RAG tool: %s", e)
-
-    if os.getenv("VT_API_KEY"):
-        tools.append(ip_reputation_tool)
-
-    agent = create_react_agent(
-        model=model,
-        tools=tools,
-        prompt=_build_system_prompt(),
-    )
-    return agent
-
-
-def _get_react_agent():
-    global react_agent
-    if react_agent is None:
-        react_agent = _build_react_agent()
-    return react_agent
-
-
-def _parse_agent_response(ai_content: str) -> PhishingReport:
-    parser = JsonOutputParser(pydantic_object=PhishingReport)
-
-    content = ai_content.strip()
-    if content.startswith("```json"):
-        content = content[7:]
-    elif content.startswith("```"):
-        content = content[3:]
-    if content.endswith("```"):
-        content = content[:-3]
-    content = content.strip()
-
-    try:
-        data = parser.invoke(content)
-        if isinstance(data, dict):
-            return PhishingReport(**data)
-        return data
-    except Exception as exc:
-        logger.debug(
-            "Respuesta del agente sin JSON directo (%s); se intenta extraer el objeto.", exc
-        )
-
-    json_match = re.search(r"\{.*\}", content, re.DOTALL)
-    if json_match:
-        try:
-            data = parser.invoke(json_match.group())
-            if isinstance(data, dict):
-                return PhishingReport(**data)
-            return data
-        except Exception as exc:
-            logger.debug(
-                "El JSON embebido en la respuesta del agente no parseó (%s).", exc
-            )
-
-    raise ValueError(
-        f"No se pudo extraer un JSON válido: {content[:500]}"
-    )
 
 
 def _genetic_score(email_data: EmailData) -> dict:
     """Calcula el score final usando el clasificador lineal + banderas (spec 007)."""
     try:
-        from src.level3_logic.scoring import calcular_score_final, ModeloError
+        from src.level3_logic.scoring import calcular_score_final
+
         resultado = calcular_score_final(email_data)
         return {
             "score": resultado.score_final,
@@ -155,11 +46,24 @@ def _genetic_score(email_data: EmailData) -> dict:
             "puntos_banderas": resultado.puntos_banderas,
         }
     except ImportError:
-        logger.warning("level3_logic.scoring no disponible. Usando score fallback=%s", SCORE_FALLBACK)
-        return {"score": SCORE_FALLBACK, "genes_implicados": [], "version_modelo": "indeterminada"}
+        logger.warning(
+            "level3_logic.scoring no disponible. Usando score fallback=%s",
+            SCORE_FALLBACK,
+        )
+        return {
+            "score": SCORE_FALLBACK,
+            "genes_implicados": [],
+            "version_modelo": "indeterminada",
+        }
     except Exception as e:
-        logger.error("Error en scoring: %s. Usando score fallback=%s", e, SCORE_FALLBACK)
-        return {"score": SCORE_FALLBACK, "genes_implicados": [], "version_modelo": "indeterminada"}
+        logger.error(
+            "Error en scoring: %s. Usando score fallback=%s", e, SCORE_FALLBACK
+        )
+        return {
+            "score": SCORE_FALLBACK,
+            "genes_implicados": [],
+            "version_modelo": "indeterminada",
+        }
 
 
 def generate_benign_report(score: float) -> PhishingReport:
@@ -189,9 +93,113 @@ def generate_malicious_report(score: float, genes: list) -> PhishingReport:
     )
 
 
-def analyze_email(email_data: EmailData) -> PhishingReport:
-    _ensure_llm()
+def _agente_zona_gris(
+    email_data: EmailData,
+    score: float,
+    genes: list,
+    score_clasificador: float | None,
+    version_modelo: str | None,
+) -> PhishingReport:
+    """Ruta de zona gris (30–75): agente IA sin estado + motor de decisión.
 
+    Spec 009: consultar_agente con evidencia estructurada.
+    Spec 008: evaluar_veredicto para veredicto final.
+    """
+    from src.level2_agent.agente import consultar_agente, EntradaAgente
+    from src.level3_logic.scoring.modelos import ScoreFinal
+
+    # Construir entrada del agente con evidencia disponible
+    entrada_agente = EntradaAgente(
+        email_data=email_data,
+        score_final=ScoreFinal(
+            score_final=int(score),
+            score_clasificador=score_clasificador or float(score),
+            puntos_banderas=0,
+            version_modelo=version_modelo or "indeterminada",
+        ),
+    )
+
+    try:
+        resultado_agente = consultar_agente(entrada_agente)
+    except Exception as e:
+        logger.error("Error en agente IA sin estado: %s", e)
+        resultado_agente = None
+
+    # Motor de decisión (spec 008)
+    try:
+        from src.level2_agent.decision import evaluar_veredicto, EntradaMotor
+
+        entrada_motor = EntradaMotor(
+            email_data=email_data,
+            score_final=ScoreFinal(
+                score_final=int(score),
+                score_clasificador=score_clasificador or float(score),
+                puntos_banderas=0,
+                version_modelo=version_modelo or "indeterminada",
+            ),
+            confirmacion_agente=(
+                resultado_agente.confirmacion_agente if resultado_agente else None
+            ),
+        )
+        veredicto = evaluar_veredicto(entrada_motor)
+    except ImportError:
+        logger.warning("Motor de decisión no disponible. Usando heurística simple.")
+        # Fallback: si el agente confirmó phishing, es malicioso
+        es_ph = (
+            resultado_agente.confirmacion_agente
+            if resultado_agente and resultado_agente.confirmacion_agente is not None
+            else score > 50
+        )
+        veredicto = None  # type: ignore[assignment]
+    except Exception as e:
+        logger.error("Error en motor de decisión: %s", e)
+        veredicto = None  # type: ignore[assignment]
+
+    # Generar reporte basado en veredicto
+    if veredicto is not None:
+        return _veredicto_a_report(veredicto.veredicto, score, genes, resultado_agente)
+    else:
+        # Fallback sin motor de decisión
+        es_ph = (
+            resultado_agente.confirmacion_agente
+            if resultado_agente and resultado_agente.confirmacion_agente is not None
+            else score > 50
+        )
+        if es_ph:
+            return generate_malicious_report(score, genes)
+        else:
+            return generate_benign_report(score)
+
+
+def _veredicto_a_report(
+    veredicto_str: str,
+    score: float,
+    genes: list,
+    resultado_agente: object | None,
+) -> PhishingReport:
+    """Convierte el veredicto del motor de decisión a un PhishingReport."""
+    if veredicto_str == "malicioso":
+        return generate_malicious_report(score, genes)
+    elif veredicto_str == "revision_manual":
+        # Requiere revisión manual — reportar como sospechoso
+        report = generate_malicious_report(score, genes)
+        report.resumen = (
+            "⚠️ Requiere revisión manual: "
+            + report.resumen
+        )
+        return report
+    else:
+        # sin_indicadores o benigno
+        return generate_benign_report(score)
+
+
+def analyze_email(email_data: EmailData) -> PhishingReport:
+    """Pipeline principal de análisis de phishing.
+
+    1. Score genético (spec 007)
+    2. Ruta benigna (< 30), maliciosa (> 75) o zona gris (30–75)
+    3. Zona gris → agente IA sin estado (spec 009) + motor de decisión (spec 008)
+    """
     genetic_result = _genetic_score(email_data)
     score = genetic_result["score"]
     genes = genetic_result.get("genes_implicados", [])
@@ -211,41 +219,16 @@ def analyze_email(email_data: EmailData) -> PhishingReport:
         report.version_modelo = version_modelo
 
     else:
-        logger.info("Score %s entre %s-%s → ruta AI Agent (ReAct)", score, SCORE_UMBRAL_BAJO, SCORE_UMBRAL_ALTO)
-
-        agent = _get_react_agent()
-
-        # Art. 0.6/V.4: el LLM solo ve la vista enmascarada de la PII (D8).
-        vista_llm = enmascarar_para_terceros(email_data)
-        human_content = HUMAN_TEMPLATE.format(
-            subject=vista_llm.subject,
-            htmlBody=vista_llm.htmlBody,
-            headers=vista_llm.headers,
+        logger.info(
+            "Score %s entre %s-%s → zona gris: agente IA + motor de decisión",
+            score,
+            SCORE_UMBRAL_BAJO,
+            SCORE_UMBRAL_ALTO,
         )
-
-        messages = [HumanMessage(content=human_content)]
-
-        try:
-            result = agent.invoke({"messages": messages})
-
-            final_msg = result["messages"][-1]
-            if not isinstance(final_msg, AIMessage):
-                for msg in reversed(result["messages"]):
-                    if isinstance(msg, AIMessage):
-                        final_msg = msg
-                        break
-
-            logger.debug("Agent final_msg type=%s content=%s", type(final_msg).__name__, final_msg.content[:500] if final_msg.content else "(empty)")
-            report = _parse_agent_response(final_msg.content)
-            report.score_clasificador = score_clasificador
-            report.version_modelo = version_modelo
-
-        except Exception as e:
-            logger.error("Error en ReAct Agent: %s", e)
-            raise
-
-    if report.es_phishing:
-        jira_result = create_jira_ticket(report)
-        logger.info("Resultado ticket Jira: %s", jira_result)
+        report = _agente_zona_gris(
+            email_data, score, genes, score_clasificador, version_modelo
+        )
+        report.score_clasificador = score_clasificador
+        report.version_modelo = version_modelo
 
     return report

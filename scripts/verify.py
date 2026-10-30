@@ -149,6 +149,7 @@ def _compuerta_cobertura() -> ResultadoCompuerta:
             "--cov=src/level2_agent/decision",
             "--cov=src/level2_agent/agente",
             "--cov=src/level2_agent/acciones",
+            "--cov=src/level2_agent/persistencia",
             "--cov=src/level3_logic/scoring",
             "--cov=src/level3_logic/modelo",
             "--cov=src/level3_logic/genetic_logic",
@@ -224,6 +225,7 @@ RUTAS_CALIDAD_SRC: tuple[str, ...] = (
     "src/level2_agent/decision",
     "src/level2_agent/agente",
     "src/level2_agent/acciones",
+    "src/level2_agent/persistencia",
     "src/level3_logic/scoring",
     "src/level3_logic/modelo.py",
 )

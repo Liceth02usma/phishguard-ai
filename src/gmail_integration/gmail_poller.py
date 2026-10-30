@@ -34,10 +34,14 @@ POLL_INTERVAL = 30
 
 def process_message(service: Any, msg_id: str) -> None:
     try:
+        import time
+
+        t0 = time.monotonic()
         raw_bytes = get_message_raw(service, msg_id)
         email_data = normalizar_desde_gmail(raw_bytes, msg_id)
         logger.info("Analizando correo: %s", email_data.subject)
         report = analyze_email(email_data)
+        duracion_ms = int((time.monotonic() - t0) * 1000)
 
         if report.es_phishing:
             subject_preview = email_data.subject[:50]
@@ -51,6 +55,27 @@ def process_message(service: Any, msg_id: str) -> None:
         else:
             logger.info("SEGURO - Asunto: %s", email_data.subject[:50])
             mark_as_read(service, msg_id)
+
+        # Persistencia del análisis (spec 011, T026)
+        try:
+            from src.level2_agent.persistencia import guardar_analisis
+            from src.level2_agent.agent import construir_analisis_persistido
+
+            veredicto = "malicioso" if report.es_phishing else "sin_indicadores"
+            analisis = construir_analisis_persistido(
+                email_data,
+                report,
+                message_id=msg_id,
+                duracion_ms=duracion_ms,
+                score_final=int(report.score_clasificador or 0),
+                veredicto=veredicto,
+                nivel_severidad=report.nivel_severidad,
+                version_modelo=report.version_modelo or "indeterminada",
+            )
+            guardar_analisis(analisis)
+        except Exception as e:
+            logger.warning("No se pudo persistir análisis %s: %s", msg_id, e)
+
     except Exception as e:
         logger.error("Error procesando mensaje %s: %s", msg_id, e)
 

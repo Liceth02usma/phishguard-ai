@@ -93,6 +93,7 @@ def entrada_acciones_ejemplo(
         reporte=PhishingReport(
             resumen="Phishing detectado",
             analisis_tecnico="Análisis técnico",
+            indicadores_phishing=["url_sospechosa"],
             es_phishing=True,
             nivel_severidad="Alto",
             justificacion_veredicto="URL sospechosa",

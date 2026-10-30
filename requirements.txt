@@ -37,3 +37,9 @@ pypdf==6.21.2
 
 # Integracion VirusTotal API v3 (spec 006, modulo M06)
 httpx==0.28.1
+
+# API REST (spec 012)
+fastapi>=0.100.0
+uvicorn>=0.23.0
+python-multipart>=0.0.6
+httpx>=0.24.0

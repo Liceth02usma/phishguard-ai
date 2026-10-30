@@ -93,6 +93,12 @@ module = ["src.level2_agent.virustotal", "src.level2_agent.virustotal.*"]
 ignore_errors = false
 strict = true
 
+# Spec 008: el paquete decision/ se type-checkea estricto (Art. III.4/IV.1d).
+[[tool.mypy.overrides]]
+module = ["src.level2_agent.decision", "src.level2_agent.decision.*"]
+ignore_errors = false
+strict = true
+
 # Dependencias de spec 006 sin stubs de tipo (Art. III.8: deps fijadas).
 [[tool.mypy.overrides]]
 module = ["httpx.*", "httpcore.*"]

@@ -313,6 +313,34 @@ Variables de entorno (ver `.env.example`): `VT_API_KEY`, `VT_TIER` (`public`|`pr
 python -m pytest tests/unit/ -k "vt or clasificacion or limitador or cache_presupuesto"
 ```
 
+### Motor de Decisión (`decision/`, spec 008)
+
+Motor determinista y explicable que produce el veredicto final del pipeline. **Sin wiring al pipeline** (lo consumirán las specs 009/010).
+
+1. **Reglas duras R1–R5** (se evalúan primero; la primera que aplica fija `malicioso`):
+   - R1: hash de adjunto con VT `maliciosa` → Crítico
+   - R2: URL con VT `maliciosa` → Crítico
+   - R3: dominio con VT `maliciosa` → Alto
+   - R4: SPF+DKIM+DMARC fallan + dominio parecido/nombre suplanta → Alto
+   - R5: macro/ejecutable en adjunto cifrado + remitente no autenticado → Crítico
+
+2. **Tabla de decisión** (si ninguna regla aplicó): 6 filas que combinan `score_final`, la confirmación del agente y las verificaciones incompletas. La palabra **"seguro" jamás aparece** como veredicto (Art. V.1). Si una verificación obligatoria quedó incompleta, el veredicto es `revision_manual` (nunca `sin_indicadores`).
+
+```python
+from src.level2_agent.decision import evaluar_veredicto, EntradaMotor
+
+resultado = evaluar_veredicto(entrada)
+resultado.veredicto          # malicioso / sospechoso / revision_manual / sin_indicadores
+resultado.nivel_severidad    # Critico / Alto / Medio / Bajo
+resultado.ruta               # reglas / heuristica / ia
+resultado.reglas_aplicadas   # [{"id": "R1", ...}]
+```
+
+```powershell
+# Pruebas del módulo (76 con este filtro — sin red real, sin I/O)
+python -m pytest tests/unit/ -k "dec"
+```
+
 ## Dependencias principales
 
 - **LangChain / LangGraph** — Framework de agentes y cadenas LLM

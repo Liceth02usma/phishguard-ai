@@ -146,6 +146,7 @@ def _compuerta_cobertura() -> ResultadoCompuerta:
             "--cov=src/level2_agent/analisis_urls",
             "--cov=src/level2_agent/adjuntos",
             "--cov=src/level2_agent/virustotal",
+            "--cov=src/level2_agent/decision",
             "--cov=src/level3_logic/scoring",
             "--cov=src/level3_logic/modelo",
             "--cov=src/level3_logic/genetic_logic",
@@ -218,6 +219,7 @@ RUTAS_CALIDAD_SRC: tuple[str, ...] = (
     "src/level2_agent/analisis_urls",
     "src/level2_agent/adjuntos",
     "src/level2_agent/virustotal",
+    "src/level2_agent/decision",
     "src/level3_logic/scoring",
     "src/level3_logic/modelo.py",
 )
@@ -243,10 +245,33 @@ def _compuerta_tipos() -> ResultadoCompuerta:
     return ResultadoCompuerta("tipos", ok, [] if ok else [salida[:300]])
 
 
+def _compuerta_cobertura_ramas_motor() -> ResultadoCompuerta:
+    """100 % de ramas en motor.py (AC-DEC-06, spec 008)."""
+    ok, salida = _run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/unit/",
+            "-k",
+            "dec",
+            "--cov=src.level2_agent.decision.motor",
+            "--cov-branch",
+            "--cov-fail-under=100",
+            "-q",
+        ],
+        timeout=180,
+    )
+    return ResultadoCompuerta(
+        "cobertura_ramas_motor", ok, [] if ok else [salida[:300]]
+    )
+
+
 COMPUERTAS: list[tuple[str, object]] = [
     ("longitud_archivos", _compuerta_longitud),
     ("nombre_rama", _compuerta_nombre_rama),
     ("cobertura", _compuerta_cobertura),
+    ("cobertura_ramas_motor", _compuerta_cobertura_ramas_motor),
     ("trazabilidad_ac", _compuerta_trazabilidad),
     ("secretos", _compuerta_secretos),
     ("dependencias", _compuerta_dependencias),

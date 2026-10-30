@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 
 from src.level2_agent.agente.modelos import SalidaAgente
 
@@ -22,11 +23,13 @@ def _strip_markdown_fences(raw: str) -> str:
     return raw.strip()
 
 
-def _extraer_json(raw: str) -> dict | None:
+def _extraer_json(raw: str) -> dict[str, Any] | None:
     """Intenta extraer un objeto JSON del texto."""
     # Primero intentar parse directo
     try:
-        return json.loads(raw)
+        result: Any = json.loads(raw)
+        if isinstance(result, dict):
+            return result
     except json.JSONDecodeError:
         pass
 
@@ -42,7 +45,9 @@ def _extraer_json(raw: str) -> dict | None:
             depth -= 1
             if depth == 0 and start >= 0:
                 try:
-                    return json.loads(raw[start : i + 1])
+                    inner: Any = json.loads(raw[start : i + 1])
+                    if isinstance(inner, dict):
+                        return inner
                 except json.JSONDecodeError:
                     start = -1
     return None

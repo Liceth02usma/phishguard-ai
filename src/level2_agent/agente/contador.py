@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Final
+from typing import Any
 
 from .modelos import LLM_MAX_DIARIO_DEFAULT
 
@@ -41,9 +41,9 @@ class ContadorLLM:
         if not uri:
             return
         try:
-            from pymongo import MongoClient  # type: ignore[import-untyped]
+            from pymongo import MongoClient
 
-            client: MongoClient = MongoClient(uri, serverSelectionTimeoutMS=3000)  # type: ignore[assignment]
+            client: Any = MongoClient(uri, serverSelectionTimeoutMS=3000)
             db = client["phishguard"]
             self._coleccion = db["llm_contador"]
             self._mongo_disponible = True

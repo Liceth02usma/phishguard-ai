@@ -10,7 +10,6 @@ Constantes y límites son LITERALES de M07 (Art. VI.2).
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Final, Literal, Protocol
 
 from pydantic import BaseModel, Field, field_validator

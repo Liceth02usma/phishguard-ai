@@ -13,7 +13,6 @@ from typing import Any
 from src.level2_agent.agente.modelos import (
     LLM_MODELO_DEFAULT,
     LLM_TEMPERATURA,
-    ModeloLLM,
 )
 
 

@@ -33,7 +33,7 @@ def _construir_herramientas() -> list[object]:
     """
     herramientas: list[object] = []
     try:
-        retriever = create_retriever()
+        retriever = create_retriever()  # type: ignore[no-untyped-call]
         if retriever is not None:
             from langchain_core.tools import tool
 

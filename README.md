@@ -315,7 +315,7 @@ python -m pytest tests/unit/ -k "vt or clasificacion or limitador or cache_presu
 
 ### Motor de Decisión (`decision/`, spec 008)
 
-Motor determinista y explicable que produce el veredicto final del pipeline. **Sin wiring al pipeline** (lo consumirán las specs 009/010).
+Motor determinista y explicable que produce el veredicto final del pipeline. Consumido por la spec 009.
 
 1. **Reglas duras R1–R5** (se evalúan primero; la primera que aplica fija `malicioso`):
    - R1: hash de adjunto con VT `maliciosa` → Crítico
@@ -339,6 +339,30 @@ resultado.reglas_aplicadas   # [{"id": "R1", ...}]
 ```powershell
 # Pruebas del módulo (76 con este filtro — sin red real, sin I/O)
 python -m pytest tests/unit/ -k "dec"
+```
+
+### Agente de IA Sin Estado (`agente/`, spec 009)
+
+Agente que desempata la zona gris (score 30–75) con una única llamada al modelo LLM, validación estricta de salida y resistencia a inyección de prompts.
+
+1. **Entrada estructurada**: recibe toda la evidencia calculada (banderas, autenticación, URLs, adjuntos, VT, score) — no parsea el correo crudo.
+2. **Única herramienta**: `busqueda_vectorial` (RAG de solo lectura). Se retiraron `check_ip_reputation` y `jira_integration` del ReAct.
+3. **Triple defensa anti-inyección**: (a) sanitización de PII, (b) delimitadores `<correo>…</correo>` con declaración de no confianza, (c) prompt declarativo de seguridad.
+4. **Salida validada**: esquema `SalidaAgente` (Pydantic) con longitudes máximas. Si la validación falla, 1 reintento; si persiste, `validacion_fallida`.
+5. **Tope diario**: contador `ContadorLLM` (MongoDB con TTL, fallback in-memory). Al superar `LLM_MAX_DIARIO` (default 100), la zona gris va a `revision_manual` sin llamar al modelo.
+6. **Adapter**: `ModeloLLM` Protocol + `GeminiAdapter`. Modelo configurable vía `LLM_MODELO` env var. Tests usan `ModeloDoble` (cero llamadas reales).
+
+```python
+from src.level2_agent.agente import consultar_agente, EntradaAgente
+
+resultado = consultar_agente(entrada)
+resultado.confirmacion_agente  # True/False/None
+resultado.razon               # exito / tope_superado / validacion_fallida
+```
+
+```powershell
+# Pruebas del módulo (14 — sin modelo real, sin red)
+python -m pytest tests/unit/ -k "agt"
 ```
 
 ## Dependencias principales

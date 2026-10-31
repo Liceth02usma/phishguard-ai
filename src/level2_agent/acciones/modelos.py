@@ -84,6 +84,12 @@ class EntradaAcciones(BaseModel):
     urls: list[str] = Field(default_factory=list, description="URLs del correo")
     reporte: PhishingReport = Field(description="Reporte del análisis")
     origen: Origen = Field(description="Origen del correo: gmail o api")
+    html_body: str = Field(
+        default="",
+        exclude=True,
+        repr=False,
+        description="HTML del correo (solo memoria, para screenshot HCTI, nunca persistido)",
+    )
 
 
 class ResultadoAccion(BaseModel):

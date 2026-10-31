@@ -262,19 +262,40 @@ def _ejecutar_accion(
                 detalle=existente,
             )
 
+        # Generar screenshot del correo vía HCTI (D12)
+        screenshot_url: str | None = None
+        if entrada.html_body:
+            try:
+                from src.level2_agent.screenshots import generar_screenshot
+
+                screenshot_url = generar_screenshot(entrada.html_body)
+            except Exception as e:
+                logger.warning("Error generando screenshot: %s", e)
+
         # Crear ticket nuevo
         prioridad = "High" if accion == Accion.CREAR_TICKET else "Medium"
         summary = sanear_texto_jira(
             f"[SOC] Phishing Report: {entrada.reporte.resumen}",
             max_chars=MAX_CHARS_SUMMARY_JIRA,
         )
+
+        # Construir descripción con screenshot si está disponible
+        descripcion = entrada.reporte.analisis_tecnico
+        if screenshot_url:
+            descripcion = (
+                f"📸 Evidencia visual del correo:\n"
+                f"{screenshot_url}\n\n"
+                f"---\n\n"
+                f"{descripcion}"
+            )
+
         campos = {
             "fields": {
                 "project": {"key": JIRA_PROYECTO},
                 "issuetype": {"name": JIRA_TIPO_TICKET},
                 "summary": summary,
                 "priority": {"name": prioridad},
-                "description": sanear_texto_jira(entrada.reporte.analisis_tecnico),
+                "description": sanear_texto_jira(descripcion),
             }
         }
         res = jira.crear_ticket(campos)

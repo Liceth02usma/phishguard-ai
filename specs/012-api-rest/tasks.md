@@ -70,3 +70,8 @@
 ## Phase 7: Convergence
 
 - [X] T048: Añadir exception handlers para VALIDACION (422), ERROR_INTERNO (500) y SERVICIO_NO_DISPONIBLE (503) en app.py per FR-002 (partial)
+
+## Phase 8: Convergence
+
+- [ ] T049: Añadir ServicioNoDisponibleError (503) + handler + test per FR-002 (partial)
+- [ ] T050: Poblar adjuntos[] en respuesta EML con SHA-256 vía spec 005 + test per AC-API-02 (partial)

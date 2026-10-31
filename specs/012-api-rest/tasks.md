@@ -69,4 +69,4 @@
 
 ## Phase 7: Convergence
 
-- [ ] T048: Añadir exception handlers para VALIDACION (422), ERROR_INTERNO (500) y SERVICIO_NO_DISPONIBLE (503) en app.py per FR-002 (partial)
+- [X] T048: Añadir exception handlers para VALIDACION (422), ERROR_INTERNO (500) y SERVICIO_NO_DISPONIBLE (503) en app.py per FR-002 (partial)

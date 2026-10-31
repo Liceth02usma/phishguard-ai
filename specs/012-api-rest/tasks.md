@@ -66,3 +66,7 @@
 - [X] T045: Test de contrato OpenAPI: comparar app.openapi() con contracts/openapi.yaml (AC-API-04) (missing)
 - [X] T046: Test de métricas con fórmulas sobre datos de siembra (AC-API-05) (missing)
 - [X] T047: Añadir gate de cobertura per-paquete ≥80% para src/api/ en verify.py (Art. II.3) (partial)
+
+## Phase 7: Convergence
+
+- [ ] T048: Añadir exception handlers para VALIDACION (422), ERROR_INTERNO (500) y SERVICIO_NO_DISPONIBLE (503) en app.py per FR-002 (partial)

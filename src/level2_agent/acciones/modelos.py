@@ -11,6 +11,7 @@ Constantes y límites son LITERALES de M08 (Art. VI.2).
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from enum import Enum
 from typing import Literal
@@ -39,8 +40,8 @@ MAX_CHARS_SUMMARY_JIRA: int = 190
 HUELLA_LONGITUD: int = 16
 """Longitud de la huella de campaña en hex (D6)."""
 
-JIRA_PROYECTO: str = "SCRUM"
-"""Proyecto Jira (ya existente en jira_integration.py)."""
+JIRA_PROYECTO: str = os.environ.get("JIRA_PROYECTO", "SCRUM")
+"""Proyecto Jira (configurable via env var, default SCRUM)."""
 
 JIRA_TIPO_TICKET: str = "Task"
 """Tipo de issue Jira (ya existente en jira_integration.py)."""

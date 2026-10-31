@@ -25,6 +25,7 @@ from .models import (
     SEVERIDAD_ALTO,
     SEVERIDAD_BAJO,
     SEVERIDAD_CRITICO,
+    SEVERIDAD_MEDIO,
     EmailData,
     PhishingReport,
 )
@@ -175,6 +176,7 @@ def generate_benign_report(score: float) -> PhishingReport:
         es_phishing=False,
         nivel_severidad=SEVERIDAD_BAJO,
         justificacion_veredicto="El mensaje superó exitosamente los controles de filtrado perimetral del Algoritmo Genético. No se observaron patrones de ingeniería social, ni anomalías críticas en las firmas de autenticación técnica analizadas en las cabeceras. Se autoriza su entrega ordinaria al usuario.",
+        veredicto="sin_indicadores",
     )
 
 
@@ -191,6 +193,7 @@ def generate_malicious_report(score: float, genes: list) -> PhishingReport:
         indicadores_phishing=[g.get("caracteristica", str(g)) for g in genes],
         nivel_severidad=severidad,
         justificacion_veredicto=f"Bloqueo automatizado preventivo por el pipeline del SOC.\n\nLa optimización polinomial basada en Algoritmos Genéticos determinó que la concurrencia de los siguientes factores representa un peligro inminente de fraude o fuga de credenciales:\n\n{formato_evidencia}\n\nEl mensaje ha sido desviado de la bandeja del usuario de forma inmediata como medida de mitigación.",
+        veredicto="malicioso",
     )
 
 
@@ -295,7 +298,16 @@ def _veredicto_a_report(
 ) -> PhishingReport:
     """Convierte el veredicto del motor de decisión a un PhishingReport."""
     if veredicto_str == "malicioso":
-        return generate_malicious_report(score, genes)
+        report = generate_malicious_report(score, genes)
+        report.veredicto = "malicioso"
+        return report
+    elif veredicto_str == "sospechoso":
+        report = generate_malicious_report(score, genes)
+        report.resumen = "⚠️ Correo sospechoso: " + report.resumen
+        report.es_phishing = True
+        report.nivel_severidad = SEVERIDAD_MEDIO
+        report.veredicto = "sospechoso"
+        return report
     elif veredicto_str == "revision_manual":
         # Requiere revisión manual — reportar como sospechoso
         report = generate_malicious_report(score, genes)
@@ -303,10 +315,13 @@ def _veredicto_a_report(
             "⚠️ Requiere revisión manual: "
             + report.resumen
         )
+        report.veredicto = "revision_manual"
         return report
     else:
         # sin_indicadores o benigno
-        return generate_benign_report(score)
+        report = generate_benign_report(score)
+        report.veredicto = "sin_indicadores"
+        return report
 
 
 def analyze_email(email_data: EmailData) -> PhishingReport:

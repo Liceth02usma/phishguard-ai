@@ -81,6 +81,11 @@ class PhishingReport(BaseModel):
     justificacion_veredicto: str = Field(
         description="Justificación académica citando controles NIST o directrices OWASP"
     )
+    # Veredicto del motor de decisión (spec 008/010) para el ejecutor de acciones
+    veredicto: str = Field(
+        default="sin_indicadores",
+        description="Veredicto del motor: malicioso, sospechoso, revision_manual, sin_indicadores",
+    )
     # Campos de scoring con clasificador lineal (spec 007, contrato 012)
     score_clasificador: float | None = Field(
         default=None, description="Score- Score del clasificador lineal (0-100)"

@@ -1,3 +1,17 @@
+"""Gmail Poller — ciclo de polling que analiza correos y ejecuta acciones.
+
+Flujo por correo:
+1. Lee raw de Gmail → normaliza (spec 002)
+2. analyze_email() → PhishingReport con veredicto (specs 003–009)
+3. ejecutar_acciones() → acciones según tabla veredicto→acciones (spec 010)
+   - Gmail: etiquetar, archivar, marcar leído
+   - Jira: crear ticket (notificación al SOC)
+4. guardar_analisis() → persistencia en MongoDB (spec 011)
+
+DRY_RUN activo por defecto (ACCIONES_DRY_RUN=true, Art. V.2).
+Para producción: ACCIONES_DRY_RUN=false + credenciales Jira configuradas.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -23,8 +37,6 @@ from src.gmail_integration.gmail_reader import (
     get_gmail_service,
     get_message_raw,
     list_unread_messages,
-    mark_as_read,
-    move_to_label,
 )
 from src.level2_agent.agent import analyze_email
 from src.level2_agent.normalizacion import normalizar_desde_gmail
@@ -32,10 +44,22 @@ from src.level2_agent.normalizacion import normalizar_desde_gmail
 POLL_INTERVAL = 30
 
 
+def _extraer_remitente(email_data: object) -> str:
+    """Extrae la dirección del remitente desde las cabeceras."""
+    import json
+
+    try:
+        headers = json.loads(email_data.headers) if email_data.headers else {}  # type: ignore[union-attr]
+        sender = headers.get("From", "")
+        if "<" in sender and ">" in sender:
+            return sender.split("<")[1].split(">")[0].strip()
+        return sender.strip()
+    except (json.JSONDecodeError, IndexError, AttributeError):
+        return ""
+
+
 def process_message(service: Any, msg_id: str) -> None:
     try:
-        import time
-
         t0 = time.monotonic()
         raw_bytes = get_message_raw(service, msg_id)
         email_data = normalizar_desde_gmail(raw_bytes, msg_id)
@@ -43,32 +67,80 @@ def process_message(service: Any, msg_id: str) -> None:
         report = analyze_email(email_data)
         duracion_ms = int((time.monotonic() - t0) * 1000)
 
-        if report.es_phishing:
-            subject_preview = email_data.subject[:50]
-            logger.info(
-                "PHISHING DETECTADO - Asunto: %s | Severidad: %s | Indicadores: %s",
-                subject_preview,
-                report.nivel_severidad,
-                ", ".join(report.indicadores_phishing[:3]),
+        # --- Ejecutar acciones según veredicto (spec 010) ---
+        try:
+            from src.level2_agent.acciones import (
+                EntradaAcciones,
+                ejecutar_acciones,
             )
-            move_to_label(service, msg_id, "Phishing Alertas")
-        else:
-            logger.info("SEGURO - Asunto: %s", email_data.subject[:50])
-            mark_as_read(service, msg_id)
+            from src.level2_agent.acciones.gmail_adapter import GmailReal
+            from src.level2_agent.acciones.jira_adapter import JiraReal
 
-        # Persistencia del análisis (spec 011, T026)
+            entrada_acciones = EntradaAcciones(
+                veredicto=report.veredicto,  # type: ignore[arg-type]
+                nivel_severidad=report.nivel_severidad,  # type: ignore[arg-type]
+                message_id=msg_id,
+                remitente=_extraer_remitente(email_data),
+                asunto=email_data.subject,
+                urls=list(email_data.urls),
+                reporte=report,
+                origen="gmail",
+            )
+            gmail_adapter = GmailReal(service)
+            jira_adapter = JiraReal()
+
+            resultado_acciones = ejecutar_acciones(
+                entrada_acciones,
+                gmail=gmail_adapter,
+                jira=jira_adapter,
+            )
+
+            # Log de acciones ejecutadas
+            for ra in resultado_acciones.acciones:
+                if ra.ejecutada:
+                    logger.info(
+                        "Acción ejecutada: %s → %s (motivo: %s)",
+                        ra.accion.value,
+                        ra.destino,
+                        ra.motivo,
+                    )
+                else:
+                    logger.info(
+                        "Acción simulada/omitida: %s → %s (motivo: %s)",
+                        ra.accion.value,
+                        ra.destino,
+                        ra.motivo,
+                    )
+
+            if resultado_acciones.ticket_key:
+                logger.info(
+                    "Ticket Jira: %s (huella: %s)",
+                    resultado_acciones.ticket_key,
+                    resultado_acciones.huella_campaña,
+                )
+
+        except Exception as e:
+            logger.warning("Error en ejecutor de acciones %s: %s", msg_id, e)
+            # Fallback: si falla el ejecutor, al menos etiquetar/marcar
+            if report.es_phishing:
+                from src.gmail_integration.gmail_reader import move_to_label
+                move_to_label(service, msg_id, "Phishing Alertas")
+            else:
+                from src.gmail_integration.gmail_reader import mark_as_read
+                mark_as_read(service, msg_id)
+
+        # --- Persistencia del análisis (spec 011) ---
         try:
             from src.level2_agent.persistencia import guardar_analisis
             from src.level2_agent.agent import construir_analisis_persistido
 
-            veredicto = "malicioso" if report.es_phishing else "sin_indicadores"
             analisis = construir_analisis_persistido(
                 email_data,
                 report,
                 message_id=msg_id,
                 duracion_ms=duracion_ms,
                 score_final=int(report.score_clasificador or 0),
-                veredicto=veredicto,
+                veredicto=report.veredicto,
                 nivel_severidad=report.nivel_severidad,
                 version_modelo=report.version_modelo or "indeterminada",
             )

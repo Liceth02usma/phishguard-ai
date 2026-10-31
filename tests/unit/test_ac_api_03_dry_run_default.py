@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import os
 
 from fastapi.testclient import TestClient
@@ -18,6 +20,7 @@ def _client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.mark.ac("AC-API-03")
 def test_dry_run_default_true() -> None:
     """POST /analyses sin dry_run explícito → simulada=true."""
     c = _client()
@@ -31,6 +34,7 @@ def test_dry_run_default_true() -> None:
     assert data["accion"]["simulada"] is True
 
 
+@pytest.mark.ac("AC-API-03")
 def test_dry_run_explicit_false() -> None:
     """POST /analyses con dry_run=false → simulada=false."""
     c = _client()

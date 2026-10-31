@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import os
 
 from fastapi.testclient import TestClient
@@ -18,6 +20,7 @@ def _client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.mark.ac("AC-API-07")
 def test_health_sin_key_ok() -> None:
     """GET /api/health sin key → 200 (exento)."""
     c = _client()
@@ -25,6 +28,7 @@ def test_health_sin_key_ok() -> None:
     assert r.status_code == 200
 
 
+@pytest.mark.ac("AC-API-07")
 def test_integraciones_sin_key_401() -> None:
     """GET /api/integraciones sin key → 401."""
     c = _client()
@@ -32,6 +36,7 @@ def test_integraciones_sin_key_401() -> None:
     assert r.status_code == 401
 
 
+@pytest.mark.ac("AC-API-07")
 def test_analyses_sin_key_401() -> None:
     """GET /api/analyses sin key → 401."""
     c = _client()
@@ -39,6 +44,7 @@ def test_analyses_sin_key_401() -> None:
     assert r.status_code == 401
 
 
+@pytest.mark.ac("AC-API-07")
 def test_metrics_sin_key_401() -> None:
     """GET /api/metrics/summary sin key → 401."""
     c = _client()
@@ -46,6 +52,7 @@ def test_metrics_sin_key_401() -> None:
     assert r.status_code == 401
 
 
+@pytest.mark.ac("AC-API-07")
 def test_jobs_sin_key_401() -> None:
     """GET /api/jobs/gmail sin key → 401."""
     c = _client()
@@ -53,6 +60,7 @@ def test_jobs_sin_key_401() -> None:
     assert r.status_code == 401
 
 
+@pytest.mark.ac("AC-API-07")
 def test_key_invalida_401() -> None:
     """Key incorrecta → 401."""
     c = _client()

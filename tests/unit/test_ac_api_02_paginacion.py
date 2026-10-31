@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import os
 
 from fastapi.testclient import TestClient
@@ -10,6 +12,7 @@ from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 
 
+@pytest.mark.ac("AC-API-02")
 def test_paginacion_default_limite_50() -> None:
     """GET /analyses sin limite → limite=50."""
     os.environ["API_KEY"] = "test-key"
@@ -24,6 +27,7 @@ def test_paginacion_default_limite_50() -> None:
     assert data["limite"] == 50
 
 
+@pytest.mark.ac("AC-API-02")
 def test_paginacion_limite_max_50() -> None:
     """limite=51 → 422 (excede máximo)."""
     os.environ["API_KEY"] = "test-key"
@@ -40,6 +44,7 @@ def test_paginacion_limite_max_50() -> None:
     assert r.status_code == 422
 
 
+@pytest.mark.ac("AC-API-02")
 def test_paginacion_pagina_1() -> None:
     """pagina=0 → 422 (mínimo 1)."""
     os.environ["API_KEY"] = "test-key"

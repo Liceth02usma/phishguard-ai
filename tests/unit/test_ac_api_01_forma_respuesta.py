@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api.app import create_app
@@ -18,6 +19,7 @@ def _client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.mark.ac("AC-API-01")
 def test_health_200() -> None:
     """GET /api/health → 200 con {estado: ok}."""
     c = _client()
@@ -26,6 +28,7 @@ def test_health_200() -> None:
     assert r.json()["estado"] == "ok"
 
 
+@pytest.mark.ac("AC-API-01")
 def test_integraciones_200() -> None:
     """GET /api/integraciones → 200 con estructura esperada."""
     c = _client()
@@ -38,6 +41,7 @@ def test_integraciones_200() -> None:
     assert "gmail" in data
 
 
+@pytest.mark.ac("AC-API-01")
 def test_samples_200() -> None:
     """GET /api/samples → 200 con lista."""
     c = _client()
@@ -46,6 +50,7 @@ def test_samples_200() -> None:
     assert isinstance(r.json(), list)
 
 
+@pytest.mark.ac("AC-API-01")
 def test_list_analyses_200() -> None:
     """GET /api/analyses → 200 con paginación."""
     c = _client()
@@ -57,6 +62,7 @@ def test_list_analyses_200() -> None:
     assert "total" in data
 
 
+@pytest.mark.ac("AC-API-01")
 def test_metrics_summary_200() -> None:
     """GET /api/metrics/summary?rango=7d → 200."""
     c = _client()
@@ -70,6 +76,7 @@ def test_metrics_summary_200() -> None:
     assert "por_veredicto" in data
 
 
+@pytest.mark.ac("AC-API-01")
 def test_jobs_gmail_200() -> None:
     """GET /api/jobs/gmail → 200."""
     c = _client()
@@ -77,6 +84,7 @@ def test_jobs_gmail_200() -> None:
     assert r.status_code == 200
 
 
+@pytest.mark.ac("AC-API-01")
 def test_error_envelope_form() -> None:
     """Errores tienen forma {error: {codigo, mensaje, detalles}}."""
     c = _client()

@@ -6,6 +6,7 @@ create_app() → FastAPI con routers, middleware, exception handlers.
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -55,6 +56,39 @@ def create_app() -> FastAPI:
         )
         return JSONResponse(
             status_code=exc.status_code,
+            content=error.model_dump(),
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        """422 → VALIDACION con envelope uniforme (FR-002)."""
+        error = ErrorEnvelope(
+            error=ErrorDetail(
+                codigo="VALIDACION",
+                mensaje="La solicitud no pasó la validación.",
+                detalles=exc.errors(),
+            )
+        )
+        return JSONResponse(
+            status_code=422,
+            content=error.model_dump(),
+        )
+
+    @app.exception_handler(Exception)
+    async def internal_error_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
+        """500 → ERROR_INTERNO con envelope uniforme (FR-002)."""
+        error = ErrorEnvelope(
+            error=ErrorDetail(
+                codigo="ERROR_INTERNO",
+                mensaje="Error interno del servidor.",
+            )
+        )
+        return JSONResponse(
+            status_code=500,
             content=error.model_dump(),
         )
 

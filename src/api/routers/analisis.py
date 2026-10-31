@@ -12,21 +12,27 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 
 from src.api.csv_export import generar_csv
 from src.api.deps import APIKeyDep, CacheVTDep, RepoDep
-from src.api.errors import NoEncontradoError
+from src.api.eml_parser import extraer_adjuntos_eml
+from src.api.errors import EntradaGrandeError, NoEncontradoError
 from src.api.schemas.analisis import (
+    AdjuntoResponse,
     AnalisisMuestraRequest,
     AnalisisPaginadoResponse,
     AnalisisPegarRequest,
     AnalisisResponse,
     FeedbackRequest,
 )
-from src.api.config import LIMITE_PAGINACION_DEFAULT, LIMITE_PAGINACION_MAX
-from src.api.schemas.comunes import Veredicto
+from src.api.config import (
+    LIMITE_PAGINACION_DEFAULT,
+    LIMITE_PAGINACION_MAX,
+    MULTIPART_MAX_BYTES,
+)
+from src.api.schemas.comunes import Severidad, Veredicto
 from src.level2_agent.persistencia.borrado import borrar_analisis
 from src.level2_agent.persistencia.guardado import guardar_analisis
 from src.level2_agent.persistencia.modelos import AnalisisPersistido
@@ -76,23 +82,81 @@ def _persistido_a_response(doc: dict[str, Any]) -> AnalisisResponse:
     )
 
 
+def _analizar_adjuntos_eml(contenido: bytes) -> list[AdjuntoResponse]:
+    """Extrae adjuntos del EML y analiza con spec 005 (AC-API-02).
+
+    Devuelve lista de AdjuntoResponse con SHA-256 y reputación.
+    Errores de análisis de adjuntos se ignoran (degradación graceful).
+    """
+    from src.level2_agent.adjuntos import analizar_adjunto
+
+    resultado: list[AdjuntoResponse] = []
+    for adj in extraer_adjuntos_eml(contenido):
+        try:
+            analisis = analizar_adjunto(
+                nombre=adj.nombre,
+                tipo_declarado=adj.tipo_declarado,
+                payload=adj.payload,
+            )
+            resultado.append(
+                AdjuntoResponse(
+                    nombre=analisis.nombre,
+                    tipo_real=analisis.tipo_real,
+                    sha256=analisis.sha256,
+                    tamano=analisis.tamano_bytes,
+                    reputacion="desconocida",
+                )
+            )
+        except Exception:
+            # Degradación: adjunto no analizable → omitir
+            pass
+    return resultado
+
+
 @router.post("", status_code=201, response_model=AnalisisResponse)
 async def post_analyses(
-    body: AnalisisPegarRequest | AnalisisMuestraRequest,
+    request: Request,
     _: APIKeyDep,
     repo: RepoDep,
 ) -> AnalisisResponse:
-    """Analizar un correo (modos pegar y muestra; AC-API-03 dry_run default)."""
-    t0 = time.monotonic()
-    dry_run = body.dry_run
+    """Analizar un correo (modos pegar, muestra y eml; AC-API-03 dry_run default)."""
+    content_type = request.headers.get("content-type", "")
 
-    # Construir datos del análisis
-    if isinstance(body, AnalisisMuestraRequest):
-        asunto = f"Muestra: {body.muestra}"
-        remitente = "muestra@test.com"
+    if "multipart/form-data" in content_type:
+        # Modo EML
+        form = await request.form()
+        _modo = str(form.get("modo", "eml"))
+        dry_run = form.get("dry_run", "true") == "true"
+        archivo = form.get("archivo")
+        if archivo is None or not hasattr(archivo, "read"):
+            raise EntradaGrandeError()
+        contenido = await archivo.read()
+        if len(contenido) > MULTIPART_MAX_BYTES:
+            raise EntradaGrandeError()
+        t0 = time.monotonic()
+        asunto = f"EML: {getattr(archivo, 'filename', None) or '(sin nombre)'}"
+        remitente = "(eml)"
+        cuerpo_texto = contenido.decode("utf-8", errors="replace")[:2000]
+        # AC-API-02: extraer adjuntos del EML y analizar con spec 005
+        adjuntos_resp = _analizar_adjuntos_eml(contenido)
     else:
-        asunto = body.subject or "(sin asunto)"
-        remitente = body.from_ or "(desconocido)"
+        # JSON body (pegar o muestra)
+        body_raw = await request.json()
+        if body_raw.get("modo") == "muestra":
+            body: AnalisisPegarRequest | AnalisisMuestraRequest = AnalisisMuestraRequest(**body_raw)
+        else:
+            body = AnalisisPegarRequest(**body_raw)
+        dry_run = body.dry_run
+        t0 = time.monotonic()
+        if isinstance(body, AnalisisMuestraRequest):
+            asunto = f"Muestra: {body.muestra}"
+            remitente = "muestra@test.com"
+            cuerpo_texto = ""
+        else:
+            asunto = body.subject or "(sin asunto)"
+            remitente = body.from_ or "(desconocido)"
+            cuerpo_texto = body.text or ""
+        adjuntos_resp: list[AdjuntoResponse] = []
 
     # Ejecutar pipeline (simplificado — el real usa analyze_email)
     try:
@@ -102,7 +166,7 @@ async def post_analyses(
         email_data = EmailData(
             subject=asunto,
             sender=remitente,
-            body=body.text if isinstance(body, AnalisisPegarRequest) else "",
+            body=cuerpo_texto,
             headers="",
         )
         report = analyze_email(email_data)
@@ -141,8 +205,9 @@ async def post_analyses(
     guardar_analisis(analisis_p, repo=repo)
 
     resp = _persistido_a_response(analisis_p.model_dump(mode="json"))
-    # Inyectar resumen en la respuesta
+    # Inyectar resumen y adjuntos en la respuesta
     resp.resultado.resumen = resumen  # type: ignore[union-attr]
+    resp.resultado.adjuntos = adjuntos_resp
     return resp
 
 
@@ -151,6 +216,11 @@ async def list_analyses(
     _: APIKeyDep,
     repo: RepoDep,
     veredicto: list[Veredicto] | None = Query(default=None),
+    severidad: list[Severidad] | None = Query(default=None),
+    q: str | None = Query(default=None, max_length=200),
+    desde: datetime | None = Query(default=None),
+    hasta: datetime | None = Query(default=None),
+    orden: str | None = Query(default=None, max_length=50),
     pagina: int = Query(default=1, ge=1),
     limite: int = Query(
         default=LIMITE_PAGINACION_DEFAULT, ge=1, le=LIMITE_PAGINACION_MAX
@@ -159,7 +229,17 @@ async def list_analyses(
     """Lista paginada de análisis con filtros."""
     filtro: dict[str, Any] = {}
     if veredicto:
-        filtro["veredicto"] = {"$in": veredicto}  # simplificado para doble
+        filtro["veredicto"] = {"$in": veredicto}
+    if severidad:
+        filtro["nivel_severidad"] = {"$in": severidad}
+    if q:
+        filtro["q"] = q
+    if desde:
+        filtro["desde"] = desde.isoformat()
+    if hasta:
+        filtro["hasta"] = hasta.isoformat()
+    if orden:
+        filtro["orden"] = orden
 
     docs = repo.listar(filtro)
     total = len(docs)

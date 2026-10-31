@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import os
 
 from fastapi.testclient import TestClient
@@ -10,6 +12,7 @@ from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 
 
+@pytest.mark.ac("AC-API-09")
 def test_rate_limit_429_despues_de_30() -> None:
     """30+ POST /analyses en un minuto → 429."""
     os.environ["API_KEY"] = "test-key"
@@ -33,6 +36,7 @@ def test_rate_limit_429_despues_de_30() -> None:
     assert data["error"]["codigo"] == "DEMASIADAS_SOLICITUDES"
 
 
+@pytest.mark.ac("AC-API-09")
 def test_rate_limit_no_aplica_a_get() -> None:
     """GET /analyses no está sujeto a rate limit."""
     os.environ["API_KEY"] = "test-key"

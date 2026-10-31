@@ -101,3 +101,14 @@ class DemasiadasSolicitudesError(APIError):
             codigo="DEMASIADAS_SOLICITUDES",
             mensaje="Se excedieron 30 análisis en un minuto.",
         )
+
+
+class ServicioNoDisponibleError(APIError):
+    """503: servicio externo no disponible (FR-002)."""
+
+    def __init__(self, servicio: str = "servicio externo") -> None:
+        super().__init__(
+            status_code=503,
+            codigo="SERVICIO_NO_DISPONIBLE",
+            mensaje=f"{servicio} no disponible temporalmente.",
+        )

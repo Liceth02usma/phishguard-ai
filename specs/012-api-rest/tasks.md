@@ -56,3 +56,22 @@
 - [X] T038: Actualizar README.md con sección API REST
 - [X] T039: Actualizar AGENTS.md con arquitectura de API
 - [X] T040: Marcar tareas completadas en tasks.md
+
+## Phase 6: Convergence
+
+- [X] T041: Añadir `@pytest.mark.ac("AC-API-NN")` a todos los tests API (Art. II.6, CRITICAL) (missing)
+- [X] T042: Implementar modo=eml con multipart en POST /api/analyses + AnalisisEmlRequest schema + test AC-API-02 (FR-001, AC-API-02) (missing)
+- [X] T043: Añadir filtros faltantes a GET /api/analyses: severidad, q, desde, hasta, orden (FR-001) (missing)
+- [X] T044: Conectar validación 25MB (EntradaGrandeError) al endpoint eml (FR-003) (partial)
+- [X] T045: Test de contrato OpenAPI: comparar app.openapi() con contracts/openapi.yaml (AC-API-04) (missing)
+- [X] T046: Test de métricas con fórmulas sobre datos de siembra (AC-API-05) (missing)
+- [X] T047: Añadir gate de cobertura per-paquete ≥80% para src/api/ en verify.py (Art. II.3) (partial)
+
+## Phase 7: Convergence
+
+- [X] T048: Añadir exception handlers para VALIDACION (422), ERROR_INTERNO (500) y SERVICIO_NO_DISPONIBLE (503) en app.py per FR-002 (partial)
+
+## Phase 8: Convergence
+
+- [X] T049: Añadir ServicioNoDisponibleError (503) + handler + test per FR-002 (partial)
+- [X] T050: Poblar adjuntos[] en respuesta EML con SHA-256 vía spec 005 + test per AC-API-02 (partial)

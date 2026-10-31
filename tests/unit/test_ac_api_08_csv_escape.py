@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from datetime import datetime, timedelta, timezone
 
 from src.api.csv_export import generar_csv
@@ -36,6 +38,7 @@ def _make_response(i: int) -> AnalisisResponse:
     )
 
 
+@pytest.mark.ac("AC-API-08")
 def test_csv_escapa_formula() -> None:
     """Asunto =HYPERLINK(...) se escapa con prefijo '."""
     items = [_make_response(1)]
@@ -44,6 +47,7 @@ def test_csv_escapa_formula() -> None:
     assert "'=HYPERLINK" in csv_text or "'=" in csv_text
 
 
+@pytest.mark.ac("AC-API-08")
 def test_csv_bom_utf8() -> None:
     """CSV empieza con BOM UTF-8."""
     items = [_make_response(1)]
@@ -51,6 +55,7 @@ def test_csv_bom_utf8() -> None:
     assert csv_text.startswith("\ufeff")
 
 
+@pytest.mark.ac("AC-API-08")
 def test_csv_max_5000_filas() -> None:
     """5001 resultados → CSV con 5000 filas de datos (+1 header)."""
     items = [_make_response(i) for i in range(5001)]

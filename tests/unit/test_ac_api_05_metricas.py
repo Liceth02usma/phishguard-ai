@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import os
 
 from fastapi.testclient import TestClient
@@ -18,6 +20,7 @@ def _client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.mark.ac("AC-API-05")
 def test_metrics_rango_7d() -> None:
     """GET /metrics/summary?rango=7d → 200."""
     c = _client()
@@ -30,6 +33,7 @@ def test_metrics_rango_7d() -> None:
     assert r.json()["rango"] == "7d"
 
 
+@pytest.mark.ac("AC-API-05")
 def test_metrics_rango_30d() -> None:
     """GET /metrics/summary?rango=30d → 200."""
     c = _client()
@@ -42,6 +46,7 @@ def test_metrics_rango_30d() -> None:
     assert r.json()["rango"] == "30d"
 
 
+@pytest.mark.ac("AC-API-05")
 def test_metrics_rango_90d() -> None:
     """GET /metrics/summary?rango=90d → 200."""
     c = _client()
@@ -54,6 +59,7 @@ def test_metrics_rango_90d() -> None:
     assert r.json()["rango"] == "90d"
 
 
+@pytest.mark.ac("AC-API-05")
 def test_metrics_rango_invalido() -> None:
     """GET /metrics/summary?rango=1y → 422."""
     c = _client()

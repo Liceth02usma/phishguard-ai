@@ -163,6 +163,26 @@ def _compuerta_cobertura() -> ResultadoCompuerta:
     return ResultadoCompuerta("cobertura", ok, [] if ok else ["pytest --cov falló"])
 
 
+def _compuerta_cobertura_api() -> ResultadoCompuerta:
+    """Gate de cobertura per-paquete ≥80% para src/api/ (Art. II.3, spec F047)."""
+    ok, _ = _run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/unit/",
+            "-k",
+            "ac_api",
+            "--cov=src/api",
+            "--cov-branch",
+            "--cov-fail-under=80",
+            "-q",
+        ],
+        timeout=120,
+    )
+    return ResultadoCompuerta("cobertura_api", ok, [] if ok else ["src/api/ cobertura < 80%"])
+
+
 def _compuerta_trazabilidad() -> ResultadoCompuerta:
     base = Path(__file__).resolve().parent.parent
     spec = base / "specs" / "000-calidad-base" / "spec.md"
@@ -279,6 +299,7 @@ COMPUERTAS: list[tuple[str, object]] = [
     ("longitud_archivos", _compuerta_longitud),
     ("nombre_rama", _compuerta_nombre_rama),
     ("cobertura", _compuerta_cobertura),
+    ("cobertura_api", _compuerta_cobertura_api),
     ("cobertura_ramas_motor", _compuerta_cobertura_ramas_motor),
     ("trazabilidad_ac", _compuerta_trazabilidad),
     ("secretos", _compuerta_secretos),

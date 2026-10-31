@@ -60,6 +60,16 @@ class AnalisisMuestraRequest(BaseModel):
     dry_run: bool = Field(default=True, description="Simulacro por defecto")
 
 
+class AnalisisEmlRequest(BaseModel):
+    """POST /analyses modo eml (multipart/form-data).
+
+    El archivo EML se envía como campo 'archivo' en multipart.
+    """
+
+    modo: Literal["eml"] = Field(description="Modo eml")
+    dry_run: bool = Field(default=True, description="Simulacro por defecto")
+
+
 # --- Response models ---
 
 

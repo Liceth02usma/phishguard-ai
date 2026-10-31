@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import os
 
 from fastapi.testclient import TestClient
@@ -10,6 +12,7 @@ from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 
 
+@pytest.mark.ac("AC-API-10")
 def test_caida_modelo_revision_manual() -> None:
     """Si el pipeline lanza excepción, la respuesta es 201 con revision_manual."""
     os.environ["API_KEY"] = "test-key"

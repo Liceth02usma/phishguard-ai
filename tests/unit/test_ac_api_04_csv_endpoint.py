@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import os
 
 from fastapi.testclient import TestClient
@@ -10,6 +12,7 @@ from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 
 
+@pytest.mark.ac("AC-API-04")
 def test_export_csv_endpoint() -> None:
     """GET /analyses/export.csv → 200 con text/csv."""
     os.environ["API_KEY"] = "test-key"

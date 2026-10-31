@@ -73,5 +73,5 @@
 
 ## Phase 8: Convergence
 
-- [ ] T049: Añadir ServicioNoDisponibleError (503) + handler + test per FR-002 (partial)
-- [ ] T050: Poblar adjuntos[] en respuesta EML con SHA-256 vía spec 005 + test per AC-API-02 (partial)
+- [X] T049: Añadir ServicioNoDisponibleError (503) + handler + test per FR-002 (partial)
+- [X] T050: Poblar adjuntos[] en respuesta EML con SHA-256 vía spec 005 + test per AC-API-02 (partial)

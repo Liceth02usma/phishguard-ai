@@ -17,8 +17,10 @@ from fastapi.responses import StreamingResponse
 
 from src.api.csv_export import generar_csv
 from src.api.deps import APIKeyDep, CacheVTDep, RepoDep
+from src.api.eml_parser import extraer_adjuntos_eml
 from src.api.errors import EntradaGrandeError, NoEncontradoError
 from src.api.schemas.analisis import (
+    AdjuntoResponse,
     AnalisisMuestraRequest,
     AnalisisPaginadoResponse,
     AnalisisPegarRequest,
@@ -80,6 +82,37 @@ def _persistido_a_response(doc: dict[str, Any]) -> AnalisisResponse:
     )
 
 
+def _analizar_adjuntos_eml(contenido: bytes) -> list[AdjuntoResponse]:
+    """Extrae adjuntos del EML y analiza con spec 005 (AC-API-02).
+
+    Devuelve lista de AdjuntoResponse con SHA-256 y reputación.
+    Errores de análisis de adjuntos se ignoran (degradación graceful).
+    """
+    from src.level2_agent.adjuntos import analizar_adjunto
+
+    resultado: list[AdjuntoResponse] = []
+    for adj in extraer_adjuntos_eml(contenido):
+        try:
+            analisis = analizar_adjunto(
+                nombre=adj.nombre,
+                tipo_declarado=adj.tipo_declarado,
+                payload=adj.payload,
+            )
+            resultado.append(
+                AdjuntoResponse(
+                    nombre=analisis.nombre,
+                    tipo_real=analisis.tipo_real,
+                    sha256=analisis.sha256,
+                    tamano=analisis.tamano_bytes,
+                    reputacion="desconocida",
+                )
+            )
+        except Exception:
+            # Degradación: adjunto no analizable → omitir
+            pass
+    return resultado
+
+
 @router.post("", status_code=201, response_model=AnalisisResponse)
 async def post_analyses(
     request: Request,
@@ -104,6 +137,8 @@ async def post_analyses(
         asunto = f"EML: {getattr(archivo, 'filename', None) or '(sin nombre)'}"
         remitente = "(eml)"
         cuerpo_texto = contenido.decode("utf-8", errors="replace")[:2000]
+        # AC-API-02: extraer adjuntos del EML y analizar con spec 005
+        adjuntos_resp = _analizar_adjuntos_eml(contenido)
     else:
         # JSON body (pegar o muestra)
         body_raw = await request.json()
@@ -121,6 +156,7 @@ async def post_analyses(
             asunto = body.subject or "(sin asunto)"
             remitente = body.from_ or "(desconocido)"
             cuerpo_texto = body.text or ""
+        adjuntos_resp: list[AdjuntoResponse] = []
 
     # Ejecutar pipeline (simplificado — el real usa analyze_email)
     try:
@@ -169,8 +205,9 @@ async def post_analyses(
     guardar_analisis(analisis_p, repo=repo)
 
     resp = _persistido_a_response(analisis_p.model_dump(mode="json"))
-    # Inyectar resumen en la respuesta
+    # Inyectar resumen y adjuntos en la respuesta
     resp.resultado.resumen = resumen  # type: ignore[union-attr]
+    resp.resultado.adjuntos = adjuntos_resp
     return resp
 
 

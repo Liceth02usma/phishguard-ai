@@ -52,14 +52,15 @@ def _construir_herramientas() -> list[object]:
 def _obtener_modelo(modelo: ModeloLLM | None = None) -> ModeloLLM:
     """Obtiene el modelo LLM (Adapter, FR-008).
 
-    Si no se proporciona uno, construye el GeminiAdapter por defecto.
+    Si no se proporciona uno, usa la factory (Strategy) que lee
+    LLM_PROVEEDOR del entorno (default: "gemini").
     """
     if modelo is not None:
         return modelo
 
-    from src.level2_agent.agente.gemini_adapter import GeminiAdapter
+    from src.level2_agent.agente.factory import crear_modelo
 
-    return GeminiAdapter()
+    return crear_modelo()  # type: ignore[return-value]
 
 
 def consultar_agente(

@@ -85,6 +85,7 @@ def process_message(service: Any, msg_id: str) -> None:
                 urls=list(email_data.urls),
                 reporte=report,
                 origen="gmail",
+                html_body=email_data.htmlBody,
             )
             gmail_adapter = GmailReal(service)
             jira_adapter = JiraReal()

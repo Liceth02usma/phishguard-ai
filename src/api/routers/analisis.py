@@ -8,6 +8,7 @@ AC-API-10: caída VT → 201 con revision_manual.
 from __future__ import annotations
 
 import io
+import json
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -69,7 +70,7 @@ def _persistido_a_response(doc: dict[str, Any]) -> AnalisisResponse:
         resultado=ResultadoResponse(
             score=doc.get("score_final", 0),
             ruta=doc.get("ruta", "heuristica"),
-            es_phishing=doc.get("veredicto") == "malicioso",
+            es_phishing=doc.get("veredicto") in ("malicioso", "sospechoso", "revision_manual"),
             veredicto=doc.get("veredicto", "sin_indicadores"),
             nivel_severidad=doc.get("nivel_severidad", "Bajo"),
             resumen=resultado.get("resumen", ""),
@@ -158,22 +159,34 @@ async def post_analyses(
             cuerpo_texto = body.text or ""
         adjuntos_resp: list[AdjuntoResponse] = []
 
-    # Ejecutar pipeline (simplificado — el real usa analyze_email)
+    # Ejecutar pipeline completo (specs 003-009)
     try:
         from src.level2_agent.agent import analyze_email
         from src.level2_agent.models import EmailData
 
+        # Construir headers como JSON string para el pipeline
+        if "multipart/form-data" in content_type:
+            headers_json = ""
+        elif isinstance(body, AnalisisMuestraRequest):
+            headers_json = ""
+        else:
+            headers_json = json.dumps(body.headers) if body.headers else ""
+
         email_data = EmailData(
             subject=asunto,
-            sender=remitente,
-            body=cuerpo_texto,
-            headers="",
+            recipient=remitente,
+            textBody=cuerpo_texto,
+            headers=headers_json,
         )
         report = analyze_email(email_data)
-        veredicto = "malicioso" if report.es_phishing else "sin_indicadores"
+        veredicto = report.veredicto
         score = int(report.score_clasificador or 0)
         resumen = report.resumen
+        # Normalizar severidad: el pipeline usa "Crítico" con tilde,
+        # pero AnalisisPersistido usa "Critico" sin tilde
         severidad = report.nivel_severidad
+        if severidad == "Crítico":
+            severidad = "Critico"
     except Exception:
         # AC-API-10: caída → 201 con revision_manual
         veredicto = "revision_manual"

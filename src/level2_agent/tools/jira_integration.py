@@ -45,8 +45,8 @@ h2. Justificación del Veredicto
 
     payload = {
         "fields": {
-            "project": {"key": "SCRUM"},
-            "issuetype": {"name": "Task"},
+            "project": {"key": os.environ.get("JIRA_PROYECTO", "SCRUM")},
+            "issuetype": {"name": os.environ.get("JIRA_TIPO_TICKET", "Tarea")},
             "summary": summary[:190],
             "description": description,
         }

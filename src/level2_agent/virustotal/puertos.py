@@ -189,7 +189,10 @@ def dependencias_por_defecto() -> DependenciasVT:
     tope_dia = ConfigVT.desde_entorno().tope_dia
     transporte = httpx.AsyncClient(
         timeout=httpx.Timeout(
-            connect=TIMEOUT_CONEXION_SEGUNDOS, read=TIMEOUT_LECTURA_SEGUNDOS
+            connect=TIMEOUT_CONEXION_SEGUNDOS,
+            read=TIMEOUT_LECTURA_SEGUNDOS,
+            write=TIMEOUT_LECTURA_SEGUNDOS,
+            pool=TIMEOUT_CONEXION_SEGUNDOS,
         )
     )
     return DependenciasVT(

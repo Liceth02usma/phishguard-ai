@@ -53,7 +53,7 @@ class JiraReal:
 
             auth = (email, token)
             response = requests.post(
-                f"{url}/rest/api/2/issue",
+                f"{url.rstrip('/')}/rest/api/2/issue",
                 json=campos,
                 auth=auth,
                 headers={"Content-Type": "application/json"},
@@ -87,7 +87,7 @@ class JiraReal:
             jql = f'cf[huella_campaña] = "{huella}"'
             auth = (email, token)
             response = requests.get(
-                f"{url}/rest/api/2/search",
+                f"{url.rstrip('/')}/rest/api/2/search",
                 params={"jql": jql, "maxResults": 1},
                 auth=auth,
                 timeout=15,
@@ -116,7 +116,7 @@ class JiraReal:
 
             auth = (email, token)
             requests.post(
-                f"{url}/rest/api/2/issueLink",
+                f"{url.rstrip('/')}/rest/api/2/issueLink",
                 json={
                     "type": {"name": "Relates"},
                     "inwardIssue": {"key": key_origen},

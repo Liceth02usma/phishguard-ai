@@ -43,8 +43,8 @@ HUELLA_LONGITUD: int = 16
 JIRA_PROYECTO: str = os.environ.get("JIRA_PROYECTO", "SCRUM")
 """Proyecto Jira (configurable via env var, default SCRUM)."""
 
-JIRA_TIPO_TICKET: str = "Task"
-"""Tipo de issue Jira (ya existente en jira_integration.py)."""
+JIRA_TIPO_TICKET: str = os.environ.get("JIRA_TIPO_TICKET", "Tarea")
+"""Tipo de issue Jira (configurable via env var, default Tarea según n8n)."""
 
 # --- Tipos literales ---
 

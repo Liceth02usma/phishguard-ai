@@ -15,6 +15,7 @@ pymongo
 python-dotenv
 pydantic
 requests
+pytz
 
 # Agente ReAct
 langgraph>=0.1.0

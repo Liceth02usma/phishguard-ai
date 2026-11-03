@@ -164,23 +164,30 @@ async def post_analyses(
         from src.level2_agent.agent import analyze_email
         from src.level2_agent.models import EmailData
 
-        # Construir headers como JSON string para el pipeline
+        # Construir headers como JSON string y cabeceras para el pipeline
         if "multipart/form-data" in content_type:
             headers_json = ""
+            cabeceras_list = []
         elif isinstance(body, AnalisisMuestraRequest):
             headers_json = ""
+            cabeceras_list = []
         else:
             headers_json = json.dumps(body.headers) if body.headers else ""
+            from src.level2_agent.models import Cabecera
+            cabeceras_list = [
+                Cabecera(nombre=k, valor=v) for k, v in (body.headers or {}).items()
+            ]
 
         email_data = EmailData(
             subject=asunto,
             recipient=remitente,
             textBody=cuerpo_texto,
             headers=headers_json,
+            cabeceras=cabeceras_list,
         )
         report = analyze_email(email_data)
         veredicto = report.veredicto
-        score = int(report.score_clasificador or 0)
+        score = int(report.score_final or report.score_clasificador or 0)
         resumen = report.resumen
         # Normalizar severidad: el pipeline usa "Crítico" con tilde,
         # pero AnalisisPersistido usa "Critico" sin tilde

@@ -88,7 +88,10 @@ class PhishingReport(BaseModel):
     )
     # Campos de scoring con clasificador lineal (spec 007, contrato 012)
     score_clasificador: float | None = Field(
-        default=None, description="Score- Score del clasificador lineal (0-100)"
+        default=None, description="Score del clasificador lineal (0-100)"
+    )
+    score_final: int | None = Field(
+        default=None, description="Score final compuesto (clasificador + banderas, 0-100)"
     )
     version_modelo: str | None = Field(
         default=None, description="Versión del modelo de clasificador usado"

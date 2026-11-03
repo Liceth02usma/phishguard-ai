@@ -216,10 +216,13 @@ def _agente_zona_gris(
     from src.level2_agent.agente import consultar_agente, EntradaAgente
     from src.level3_logic.scoring.modelos import ScoreFinal
 
+    # Calcular puntos_banderas = score_final - score_clasificador
+    _sc = score_clasificador if score_clasificador is not None else float(score)
+    _pb = max(0, int(score) - round(_sc))
     score_final_obj = ScoreFinal(
         score_final=int(score),
-        score_clasificador=score_clasificador or float(score),
-        puntos_banderas=0,
+        score_clasificador=_sc,
+        puntos_banderas=_pb,
         version_modelo=version_modelo or "indeterminada",
     )
 
@@ -353,12 +356,14 @@ def analyze_email(email_data: EmailData) -> PhishingReport:
         logger.info("Score %s < %s → ruta benigna", score, SCORE_UMBRAL_BAJO)
         report = generate_benign_report(score)
         report.score_clasificador = score_clasificador
+        report.score_final = int(score)
         report.version_modelo = version_modelo
 
     elif score > SCORE_UMBRAL_ALTO:
         logger.info("Score %s > %s → ruta maliciosa", score, SCORE_UMBRAL_ALTO)
         report = generate_malicious_report(score, genes)
         report.score_clasificador = score_clasificador
+        report.score_final = int(score)
         report.version_modelo = version_modelo
 
     else:
@@ -375,6 +380,7 @@ def analyze_email(email_data: EmailData) -> PhishingReport:
             verificaciones_incompletas=verificaciones_incompletas,
         )
         report.score_clasificador = score_clasificador
+        report.score_final = int(score)
     return report
 
 

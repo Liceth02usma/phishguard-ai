@@ -4,7 +4,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 from dotenv import load_dotenv; load_dotenv()
 
 key = os.environ.get("API_KEY", "test-key")
-base = "http://localhost:8000"
+base = "http://127.0.0.1:8000"
 
 # Health
 print("=" * 60)

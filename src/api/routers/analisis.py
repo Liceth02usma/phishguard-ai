@@ -262,7 +262,7 @@ async def post_analyses(
         ]
         resp.resultado.analisis_tecnico = report.analisis_tecnico
         resp.resultado.justificacion_veredicto = report.justificacion_veredicto
-        resp.resultado.version_modelo = report.version_modelo or "indeterminada"
+        resp.resultado.version_modelo = report.version_modelo or "clasificador_v1"
 
     # Banderas de scoring (spec 003/004/005)
     if score_final_obj is not None:
@@ -309,23 +309,38 @@ async def post_analyses(
         try:
             from src.level2_agent.acciones.ejecutor import ejecutar_acciones
             from src.level2_agent.acciones.modelos import EntradaAcciones
+            from src.level2_agent.acciones.jira_adapter import JiraReal
+
+            # Construir entrada completa con el reporte del pipeline
             entrada_acc = EntradaAcciones(
-                message_id=msg_id, veredicto=veredicto, score=score,
-                remitente=remitente, asunto=asunto, resumen=resumen,
+                message_id=msg_id,
+                veredicto=veredicto,  # type: ignore[arg-type]
+                nivel_severidad=severidad,  # type: ignore[arg-type]
+                remitente=remitente,
+                asunto=asunto,
+                urls=[u.url for u in resp.resultado.urls] if resp.resultado.urls else [],
+                reporte=report,
+                origen="api",
             )
-            resultado_acc = ejecutar_acciones(entrada_acc)
-            for acc in resultado_acc.acciones:
-                if acc.accion.value == "crear_ticket" and acc.ejecutada:
-                    if acc.detalle and "SCRUM-" in acc.detalle:
-                        from src.api.schemas.analisis import TicketResponse
-                        jira_base = os.environ.get("JIRA_URL", "https://licethusma.atlassian.net")
-                        clave = acc.detalle.split("SCRUM-")[-1].strip()
-                        clave_full = f"SCRUM-{clave}" if "SCRUM" not in clave else clave
-                        resp.resultado.ticket = TicketResponse(
-                            clave=clave_full, url=f"{jira_base}/browse/{clave_full}",
-                        )
+            resultado_acc = ejecutar_acciones(
+                entrada_acc, jira=JiraReal(),
+            )
+            # Mapear ticket si se creó
+            if resultado_acc.ticket_key:
+                from src.api.schemas.analisis import TicketResponse
+                jira_base = os.environ.get(
+                    "JIRA_INSTANCE_URL", "https://ucaldas-team-uodce00a.atlassian.net/"
+                ).rstrip("/")
+                clave = resultado_acc.ticket_key
+                resp.resultado.ticket = TicketResponse(
+                    clave=clave, url=f"{jira_base}/browse/{clave}",
+                )
+            # Mapear acciones ejecutadas
+            acciones_ejecutadas = [
+                acc.accion.value for acc in resultado_acc.acciones if acc.ejecutada
+            ]
             resp.accion.simulada = False
-            resp.accion.ejecutada = veredicto
+            resp.accion.ejecutada = ", ".join(acciones_ejecutadas) if acciones_ejecutadas else None
         except Exception as exc:
             import logging
             logging.getLogger(__name__).warning("Acciones degradadas: %s", exc)

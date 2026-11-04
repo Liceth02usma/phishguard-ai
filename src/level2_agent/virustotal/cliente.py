@@ -116,7 +116,32 @@ def _consultar(
     deps: DependenciasVT | None,
     presupuesto: Presupuesto | None,
 ) -> ResultadoVT:
-    """Envuelve el flujo asíncrono en `asyncio.run` (D2: API síncrona)."""
+    """Envuelve el flujo asíncrono (D2: API síncrona).
+
+    Si ya hay un event loop corriendo (ej. uvicorn), usa nest_asyncio
+    para permitir anidar asyncio.run() dentro del loop existente.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        # Estamos dentro de un event loop (ej. uvicorn)
+        # Usar nest_asyncio para permitir asyncio.run() anidado
+        try:
+            import nest_asyncio  # type: ignore[import-untyped]
+            nest_asyncio.apply()
+        except ImportError:
+            # Sin nest_asyncio, crear un nuevo thread con su propio loop
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(
+                    asyncio.run,
+                    _consultar_async(tipo, valor, config=config, deps=deps, presupuesto=presupuesto),
+                )
+                return future.result()
+
     return asyncio.run(
         _consultar_async(tipo, valor, config=config, deps=deps, presupuesto=presupuesto)
     )

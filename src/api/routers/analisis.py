@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -160,6 +161,10 @@ async def post_analyses(
         adjuntos_resp: list[AdjuntoResponse] = []
 
     # Ejecutar pipeline completo (specs 003-009)
+    report = None
+    resultado_band = None
+    score_final_obj = None
+    email_data = None
     try:
         from src.level2_agent.agent import analyze_email
         from src.level2_agent.models import EmailData
@@ -194,6 +199,25 @@ async def post_analyses(
         severidad = report.nivel_severidad
         if severidad == "Crítico":
             severidad = "Critico"
+
+        # Evaluar banderas por separado para exponer autenticación
+        try:
+            from src.level2_agent.banderas import evaluar_banderas
+            from src.level2_agent.banderas.configuracion import ConfigBanderas
+            config_band = ConfigBanderas.desde_entorno()
+            resultado_band = evaluar_banderas(email_data, config=config_band)
+        except Exception:
+            pass
+
+        # Obtener score_final_obj del agente (para banderas de scoring)
+        # Solo si no lo tenemos ya del report
+        if score_final_obj is None:
+            try:
+                from src.level3_logic.scoring import calcular_score_final
+                score_final_obj = calcular_score_final(email_data)
+            except Exception:
+                pass
+
     except Exception:
         # AC-API-10: caída → 201 con revision_manual
         veredicto = "revision_manual"
@@ -228,6 +252,84 @@ async def post_analyses(
     # Inyectar resumen y adjuntos en la respuesta
     resp.resultado.resumen = resumen  # type: ignore[union-attr]
     resp.resultado.adjuntos = adjuntos_resp
+
+    # Poblar campos detallados del resultado
+    if report is not None:
+        from src.api.schemas.analisis import IndicadorResponse
+        resp.resultado.indicadores = [
+            IndicadorResponse(codigo=ind, descripcion=ind, peso=1.0)
+            for ind in (report.indicadores_phishing or [])
+        ]
+        resp.resultado.analisis_tecnico = report.analisis_tecnico
+        resp.resultado.justificacion_veredicto = report.justificacion_veredicto
+        resp.resultado.version_modelo = report.version_modelo or "indeterminada"
+
+    # Banderas de scoring (spec 003/004/005)
+    if score_final_obj is not None:
+        from src.api.schemas.analisis import BanderaResponse
+        resp.resultado.banderas = [
+            BanderaResponse(
+                codigo=b.codigo, severidad=b.origen,
+                puntos=b.puntos, detalle=f"{b.origen}:{b.codigo}",
+            )
+            for b in (score_final_obj.banderas or [])
+        ]
+
+    # Autenticación SPF/DKIM/DMARC + banderas de cabeceras
+    if resultado_band is not None:
+        from src.api.schemas.analisis import AutenticacionResponse, BanderaResponse
+        est = resultado_band.estados_autenticacion
+        resp.resultado.autenticacion = AutenticacionResponse(
+            spf=est.spf, dkim=est.dkim, dmarc=est.dmarc,
+        )
+        codigos_existentes = {b.codigo for b in resp.resultado.banderas}
+        for b in resultado_band.banderas:
+            if b.codigo not in codigos_existentes:
+                resp.resultado.banderas.append(BanderaResponse(
+                    codigo=b.codigo, severidad=b.severidad,
+                    puntos=b.puntos, detalle=b.detalle,
+                ))
+
+    # URLs del correo
+    if email_data is not None:
+        from src.api.schemas.analisis import UrlResponse
+        # URLs del email_data + URLs extraídas del texto
+        all_urls = list(email_data.urls) if email_data.urls else []
+        if not all_urls and email_data.textBody:
+            import re as _re
+            _url_pattern = _re.compile(r'https?://\S+', _re.IGNORECASE)
+            all_urls = _url_pattern.findall(email_data.textBody)
+        resp.resultado.urls = [
+            UrlResponse(url=u, reputacion="desconocida")
+            for u in all_urls
+        ]
+
+    # Acciones ejecutadas (conectar ejecutor cuando dry_run=false)
+    if report is not None and not dry_run:
+        try:
+            from src.level2_agent.acciones.ejecutor import ejecutar_acciones
+            from src.level2_agent.acciones.modelos import EntradaAcciones
+            entrada_acc = EntradaAcciones(
+                message_id=msg_id, veredicto=veredicto, score=score,
+                remitente=remitente, asunto=asunto, resumen=resumen,
+            )
+            resultado_acc = ejecutar_acciones(entrada_acc)
+            for acc in resultado_acc.acciones:
+                if acc.accion.value == "crear_ticket" and acc.ejecutada:
+                    if acc.detalle and "SCRUM-" in acc.detalle:
+                        from src.api.schemas.analisis import TicketResponse
+                        jira_base = os.environ.get("JIRA_URL", "https://licethusma.atlassian.net")
+                        clave = acc.detalle.split("SCRUM-")[-1].strip()
+                        clave_full = f"SCRUM-{clave}" if "SCRUM" not in clave else clave
+                        resp.resultado.ticket = TicketResponse(
+                            clave=clave_full, url=f"{jira_base}/browse/{clave_full}",
+                        )
+            resp.accion.simulada = False
+            resp.accion.ejecutada = veredicto
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Acciones degradadas: %s", exc)
+
     return resp
 
 

@@ -105,29 +105,52 @@ def _extraer_dominio_remitente(email_data: EmailData) -> str:
 def _consultar_vt(email_data: EmailData) -> tuple[list[object], list[object]]:
     """Consulta VirusTotal para URLs y dominio del remitente (spec 006).
 
+    Auditoría AC-API-10 (Opción A, 2026-11-17): si VT está no disponible
+    (sin API key, cortacircuito o cuota agotada → banda VT_NO_DISPONIBLE),
+    la verificación queda registrada como incompleta para que el motor
+    aplique FR-003 → ``revision_manual`` en la zona gris. Antes el cliente
+    nunca lanzaba excepción (G12) y la incompletitud no se registraba.
+
     Returns:
         (resultados_vt, verificaciones_incompletas)
     """
     resultados_vt: list[object] = []
     verificaciones_incompletas: list[object] = []
 
+    from src.level2_agent.decision.modelos import (
+        TipoVerificacion,
+        VerificacionIncompleta,
+    )
+
+    def _registrar_incompleta(tipo: TipoVerificacion, razon: str) -> None:
+        """AC-API-10: agrega la incompletitud solo una vez por tipo."""
+        if any(getattr(v, "tipo", None) == tipo for v in verificaciones_incompletas):
+            return
+        verificaciones_incompletas.append(
+            VerificacionIncompleta(tipo=tipo, razon=razon)
+        )
+
+    def _vt_no_disponible(resultado: object) -> bool:
+        codigos = [
+            getattr(b, "codigo", "") for b in getattr(resultado, "banderas", [])
+        ]
+        return "VT_NO_DISPONIBLE" in codigos
+
     try:
         from src.level2_agent.virustotal import consultar_url, consultar_dominio
-        from src.level2_agent.decision.modelos import VerificacionIncompleta
 
         # Consultar URLs del correo
         for url in email_data.urls[:10]:  # Presupuesto: máx 10 URLs
             try:
                 resultado = consultar_url(url)
                 resultados_vt.append(resultado)
+                if _vt_no_disponible(resultado):
+                    _registrar_incompleta(
+                        "vt_url", "VT_NO_DISPONIBLE: VirusTotal no disponible"
+                    )
             except Exception as exc:
                 logger.warning("VT URL degradada (%s): %s", url, exc)
-                verificaciones_incompletas.append(
-                    VerificacionIncompleta(
-                        tipo="vt_url",
-                        razon=f"VT_NO_DISPONIBLE: {exc}",
-                    )
-                )
+                _registrar_incompleta("vt_url", f"VT_NO_DISPONIBLE: {exc}")
 
         # Consultar dominio del remitente (extraído de cabeceras)
         dominio = _extraer_dominio_remitente(email_data)
@@ -135,19 +158,23 @@ def _consultar_vt(email_data: EmailData) -> tuple[list[object], list[object]]:
                 try:
                     resultado = consultar_dominio(dominio)
                     resultados_vt.append(resultado)
+                    if _vt_no_disponible(resultado):
+                        _registrar_incompleta(
+                            "vt_dominio",
+                            "VT_NO_DISPONIBLE: VirusTotal no disponible",
+                        )
                 except Exception as exc:
                     logger.warning("VT dominio degradado (%s): %s", dominio, exc)
-                    verificaciones_incompletas.append(
-                        VerificacionIncompleta(
-                            tipo="vt_dominio",
-                            razon=f"VT_NO_DISPONIBLE: {exc}",
-                        )
-                    )
+                    _registrar_incompleta("vt_dominio", f"VT_NO_DISPONIBLE: {exc}")
 
     except ImportError:
         logger.warning("VirusTotal no disponible. Verificaciones VT omitidas.")
+        _registrar_incompleta(
+            "vt_url", "VT_NO_DISPONIBLE: módulo VirusTotal no disponible"
+        )
     except Exception as e:
         logger.error("Error general VT: %s", e)
+        _registrar_incompleta("vt_url", f"VT_NO_DISPONIBLE: {e}")
 
     return resultados_vt, verificaciones_incompletas
 

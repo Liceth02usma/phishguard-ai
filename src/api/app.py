@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from .config import API_PREFIX, get_cors_origins
 from .errors import APIError, ErrorDetail, ErrorEnvelope
 from .middleware import RateLimiter, SecurityHeadersMiddleware
-from .persistence_repos import RepositorioAnalisisDoble, CacheVTDoble
+from .persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 from .routers import analisis, integraciones, jobs, metricas, muestras, salud
 
 
@@ -68,7 +68,7 @@ def create_app() -> FastAPI:
             error=ErrorDetail(
                 codigo="VALIDACION",
                 mensaje="La solicitud no pasó la validación.",
-                detalles=exc.errors(),
+                detalles=list(exc.errors()),
             )
         )
         return JSONResponse(

@@ -110,7 +110,7 @@ class RepositorioReal:
     def buscar(self, message_id: str) -> dict[str, Any] | None:
         """Busca por message_id."""
         db = self._ensure_connection()
-        result = db[COLECCION_ANALISIS].find_one(
+        result: dict[str, Any] | None = db[COLECCION_ANALISIS].find_one(
             {"message_id": message_id}
         )
         if result:
@@ -131,7 +131,7 @@ class RepositorioReal:
         result = db[COLECCION_ANALISIS].delete_one(
             {"message_id": message_id}
         )
-        return result.deleted_count > 0
+        return int(result.deleted_count) > 0
 
     def contar(self, filtro: dict[str, Any]) -> int:
         """Cuenta documentos que cumplen el filtro."""

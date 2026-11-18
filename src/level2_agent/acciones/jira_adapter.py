@@ -10,7 +10,9 @@ from __future__ import annotations
 import re
 from typing import Any, Protocol
 
-from .modelos import MAX_CHARS_DESCRIPCION_JIRA, MAX_CHARS_SUMMARY_JIRA, ResultadoJira
+from .modelos import MAX_CHARS_DESCRIPCION_JIRA, ResultadoJira
+
+__all__ = ["JiraAdapter", "JiraReal", "ResultadoJira", "sanear_texto_jira"]
 
 
 class JiraAdapter(Protocol):
@@ -88,7 +90,7 @@ class JiraReal:
             auth = (email, token)
             response = requests.get(
                 f"{url.rstrip('/')}/rest/api/2/search",
-                params={"jql": jql, "maxResults": 1},
+                params={"jql": jql, "maxResults": "1"},
                 auth=auth,
                 timeout=15,
             )

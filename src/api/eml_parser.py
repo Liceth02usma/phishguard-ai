@@ -7,8 +7,8 @@ como bytes en memoria (nunca escribe a disco, Art. V.5).
 from __future__ import annotations
 
 import email
-from email.message import Message
 from dataclasses import dataclass
+from email.message import Message
 
 MAX_ADJUNTOS_EML = 10
 """Máximo de adjuntos a extraer de un EML (Art. III.6, sin números mágicos)."""
@@ -61,13 +61,12 @@ def _parte_a_adjunto(parte: Message) -> AdjuntoEml | None:
     content_type = parte.get_content_type() or "application/octet-stream"
 
     # Solo partes con attachment o non-text inline
-    if "attachment" not in disposition:
+    if "attachment" not in disposition and content_type.startswith("text/"):
         # Ignorar text/plain y text/html (cuerpo del correo)
-        if content_type.startswith("text/"):
-            return None
+        return None
 
     payload = parte.get_payload(decode=True)
-    if payload is None or len(payload) == 0:
+    if not isinstance(payload, bytes) or len(payload) == 0:
         return None
 
     nombre = parte.get_filename() or "(sin_nombre)"

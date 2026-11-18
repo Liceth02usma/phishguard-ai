@@ -8,7 +8,7 @@ final del día. Fallback a in-memory si Mongo no está disponible
 from __future__ import annotations
 
 import os
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from .modelos import LLM_MAX_DIARIO_DEFAULT
@@ -69,7 +69,7 @@ class ContadorLLM:
             try:
                 # Calcular expiración: final del día
                 manana = datetime.combine(
-                    self._hoy + timedelta(days=1), time.min, tzinfo=timezone.utc
+                    self._hoy + timedelta(days=1), time.min, tzinfo=UTC
                 )
                 self._coleccion.update_one(
                     {"fecha": str(self._hoy)},

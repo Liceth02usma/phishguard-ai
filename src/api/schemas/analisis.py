@@ -21,7 +21,6 @@ from .comunes import (
     Veredicto,
 )
 
-
 # --- Request models ---
 
 

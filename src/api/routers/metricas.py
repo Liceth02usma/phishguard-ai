@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Query
-
 from src.api.deps import APIKeyDep, RepoDep
 from src.api.schemas.comunes import Rango
 from src.api.schemas.metricas import (

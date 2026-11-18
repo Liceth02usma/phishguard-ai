@@ -138,7 +138,9 @@ def _consultar(
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(
                     asyncio.run,
-                    _consultar_async(tipo, valor, config=config, deps=deps, presupuesto=presupuesto),
+                    _consultar_async(
+                        tipo, valor, config=config, deps=deps, presupuesto=presupuesto
+                    ),
                 )
                 return future.result()
 

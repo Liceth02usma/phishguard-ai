@@ -12,10 +12,10 @@ from datetime import date, timedelta
 import pytz
 
 from .modelos import (
+    ZONA_HORARIA,
     AnalisisPersistido,
     Metricas,
     PorDia,
-    ZONA_HORARIA,
 )
 
 

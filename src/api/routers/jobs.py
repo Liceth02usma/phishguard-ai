@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
-
 from src.api.deps import APIKeyDep
 
 router = APIRouter(prefix="/jobs/gmail", tags=["Jobs"])
@@ -26,7 +25,7 @@ async def post_jobs_gmail_run(_: APIKeyDep) -> dict[str, object]:
     """Forzar un ciclo del poller (Art. V.8: sin roles)."""
     # TODO: invocar poller en background
     return {
-        "ultimo_ciclo": datetime.now(tz=timezone.utc).isoformat(),
+        "ultimo_ciclo": datetime.now(tz=UTC).isoformat(),
         "pendientes": 0,
         "fallidos": 0,
     }

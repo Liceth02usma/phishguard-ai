@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from pydantic import SecretStr
 from src.level2_agent.agente.modelos import (
     LLM_TEMPERATURA,
 )
@@ -51,7 +52,7 @@ class GroqAdapter:
 
         self._llm = ChatOpenAI(
             model=self._modelo_nombre,
-            api_key=api_key,
+            api_key=SecretStr(api_key),
             base_url=GROQ_BASE_URL,
             temperature=LLM_TEMPERATURA,
         )

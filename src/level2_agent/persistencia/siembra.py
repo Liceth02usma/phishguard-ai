@@ -9,12 +9,11 @@ Genera exactamente 100 análisis por fórmula sin aleatoriedad:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, tzinfo
 
 import pytz
 
 from .modelos import (
-    AnalisisPersistido,
     RETENCION_ANALISIS_DIAS,
     SIEMBRA_MALICIOSOS,
     SIEMBRA_SIN_INDICADORES,
@@ -22,6 +21,7 @@ from .modelos import (
     SIEMBRA_SOSPECHOSOS,
     SIEMBRA_TOTAL,
     ZONA_HORARIA,
+    AnalisisPersistido,
 )
 from .repositorio import RepositorioAnalisis
 
@@ -36,7 +36,7 @@ def sembrar_datos(
     Idempotente: borra siembra previa antes de insertar (I4).
     Retorna: número de documentos insertados (100).
     """
-    ts = ahora or datetime.now(tz=timezone.utc)
+    ts = ahora or datetime.now(tz=UTC)
     tz_obj = pytz.timezone(ZONA_HORARIA)
 
     # 1. Borrar siembra previa (idempotencia)
@@ -58,7 +58,7 @@ def sembrar_datos(
 
 def _generar_analisis_siembra(
     ahora: datetime,
-    tz_obj: timezone,
+    tz_obj: tzinfo,
 ) -> list[AnalisisPersistido]:
     """Genera 100 AnalisisPersistido deterministas."""
     # Distribución de veredictos: 55 sin_ind + 15 sos + 30 mal

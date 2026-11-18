@@ -6,7 +6,7 @@ GmailReal envuelve las funciones de gmail_reader.py.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class GmailAdapter(Protocol):
@@ -35,7 +35,8 @@ class GmailReal:
     Requiere un servicio Gmail autenticado.
     """
 
-    def __init__(self, service: object) -> None:
+    def __init__(self, service: Any) -> None:
+        # googleapiclient no trae stubs: Any es la anotación correcta (D2).
         self._service = service
 
     def etiquetar(self, msg_id: str, etiqueta: str) -> str:
@@ -47,7 +48,7 @@ class GmailReal:
 
     def archivar(self, msg_id: str) -> None:
         """Quita de la bandeja (remove INBOX label)."""
-        self._service.messages().modify(  # type: ignore[union-attr]
+        self._service.messages().modify(
             userId="me",
             id=msg_id,
             body={"removeLabelIds": ["INBOX"]},
@@ -62,7 +63,7 @@ class GmailReal:
     def crear_etiqueta(self, nombre: str) -> str:
         """Crea la etiqueta si no existe. Retorna su ID."""
         result = (
-            self._service.labels()  # type: ignore[union-attr]
+            self._service.labels()
             .list(userId="me")
             .execute()
         )
@@ -70,7 +71,7 @@ class GmailReal:
             if label.get("name") == nombre:
                 return str(label["id"])
         new_label = (
-            self._service.labels()  # type: ignore[union-attr]
+            self._service.labels()
             .create(userId="me", body={"name": nombre})
             .execute()
         )

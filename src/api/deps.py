@@ -13,7 +13,7 @@ from fastapi import Depends, Header, Request
 
 from .config import get_api_key
 from .errors import NoAutenticadoError
-from .persistence_repos import RepositorioAnalisisDoble, CacheVTDoble
+from .persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 
 
 async def verificar_api_key(

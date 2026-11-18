@@ -8,7 +8,6 @@ from __future__ import annotations
 import os
 
 from fastapi import APIRouter
-
 from src.api.deps import APIKeyDep
 
 router = APIRouter(prefix="/integraciones", tags=["Integraciones"])

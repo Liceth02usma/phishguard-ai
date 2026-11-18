@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
@@ -27,12 +27,14 @@ class RateLimiter(BaseHTTPMiddleware):
         super().__init__(app)  # type: ignore[arg-type]
         self._requests: dict[str, list[float]] = defaultdict(list)
 
-    async def dispatch(self, request: Request, call_next: object) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         # Solo limitar POST /api/analyses
         path = request.url.path
         method = request.method
         if method != "POST" or path != "/api/analyses":
-            return await call_next(request)  # type: ignore[misc]
+            return await call_next(request)
 
         # Identificar por API key + IP
         api_key = request.headers.get("X-API-Key", "")
@@ -61,14 +63,16 @@ class RateLimiter(BaseHTTPMiddleware):
 
         # Registrar y continuar
         self._requests[key].append(now)
-        return await call_next(request)  # type: ignore[misc]
+        return await call_next(request)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Añade cabeceras de seguridad (FR-003)."""
 
-    async def dispatch(self, request: Request, call_next: object) -> Response:
-        response = await call_next(request)  # type: ignore[misc]
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Cache-Control"] = "no-store"

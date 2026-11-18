@@ -11,6 +11,7 @@ consultar_agente(entrada) -> ResultadoAgente:
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 from src.level2_agent.agente.contador import ContadorLLM
 from src.level2_agent.agente.modelos import (
@@ -25,7 +26,7 @@ from src.level2_agent.agente.validador import validar_salida
 from src.level2_agent.tools import create_retriever
 
 
-def _construir_herramientas() -> list[object]:
+def _construir_herramientas() -> list[Any]:
     """Construye la lista de herramientas del agente (FR-002, AC-AGT-01).
 
     Solo busqueda_vectorial (RAG de solo lectura).
@@ -102,7 +103,7 @@ def consultar_agente(
     llamadas = 0
     salida_valida: SalidaAgente | None = None
 
-    for intento in range(MAX_REINTENTOS + 1):
+    for _intento in range(MAX_REINTENTOS + 1):
         llamadas += 1
         contador.incrementar()
 
@@ -120,7 +121,7 @@ def consultar_agente(
         return ResultadoAgente(
             salida=salida_valida,
             confirmacion_agente=salida_valida.es_phishing,
-            reintentos=intento if salida_valida is not None else llamadas,
+            reintentos=_intento if salida_valida is not None else llamadas,
             llamadas_modelo=llamadas,
             razon="exito",
         )

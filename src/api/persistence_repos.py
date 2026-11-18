@@ -11,8 +11,10 @@ from src.level2_agent.persistencia.repositorio import (
     CacheVTReal,
     RepositorioAnalisis,
     RepositorioCacheVT,
-    RepositorioDoble as RepositorioAnalisisDoble,
     RepositorioReal,
+)
+from src.level2_agent.persistencia.repositorio import (
+    RepositorioDoble as RepositorioAnalisisDoble,
 )
 
 __all__ = [

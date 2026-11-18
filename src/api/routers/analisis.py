@@ -11,12 +11,16 @@ import io
 import json
 import os
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import Any, Literal, cast
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
-
+from src.api.config import (
+    LIMITE_PAGINACION_DEFAULT,
+    LIMITE_PAGINACION_MAX,
+    MULTIPART_MAX_BYTES,
+)
 from src.api.csv_export import generar_csv
 from src.api.deps import APIKeyDep, CacheVTDep, RepoDep
 from src.api.eml_parser import extraer_adjuntos_eml
@@ -28,11 +32,6 @@ from src.api.schemas.analisis import (
     AnalisisPegarRequest,
     AnalisisResponse,
     FeedbackRequest,
-)
-from src.api.config import (
-    LIMITE_PAGINACION_DEFAULT,
-    LIMITE_PAGINACION_MAX,
-    MULTIPART_MAX_BYTES,
 )
 from src.api.schemas.comunes import Severidad, Veredicto
 from src.level2_agent.persistencia.borrado import borrar_analisis
@@ -55,13 +54,16 @@ def _persistido_a_response(doc: dict[str, Any]) -> AnalisisResponse:
 
     # Mapear modo de persistencia a modo de API
     modo_raw = doc.get("modo", "produccion")
-    modo_api = "pegar" if modo_raw in ("produccion", "dry_run") else modo_raw
+    modo_api = cast(
+        Literal["pegar", "eml", "muestra", "gmail"],
+        "pegar" if modo_raw in ("produccion", "dry_run") else modo_raw,
+    )
 
     return AnalisisResponse(
         id=str(doc.get("message_id", "")),
         origen=doc.get("origen", "api"),
         modo=modo_api,
-        creado_en=doc.get("fecha", datetime.now(tz=timezone.utc)),
+        creado_en=doc.get("fecha", datetime.now(tz=UTC)),
         duracion_ms=doc.get("duracion_ms", 0),
         correo=CorreoResponse(
             remitente=correo.get("remitente", ""),
@@ -140,7 +142,7 @@ async def post_analyses(
         remitente = "(eml)"
         cuerpo_texto = contenido.decode("utf-8", errors="replace")[:2000]
         # AC-API-02: extraer adjuntos del EML y analizar con spec 005
-        adjuntos_resp = _analizar_adjuntos_eml(contenido)
+        adjuntos_resp: list[AdjuntoResponse] = _analizar_adjuntos_eml(contenido)
     else:
         # JSON body (pegar o muestra)
         body_raw = await request.json()
@@ -158,7 +160,7 @@ async def post_analyses(
             asunto = body.subject or "(sin asunto)"
             remitente = body.from_ or "(desconocido)"
             cuerpo_texto = body.text or ""
-        adjuntos_resp: list[AdjuntoResponse] = []
+        adjuntos_resp = []
 
     # Ejecutar pipeline completo (specs 003-009)
     report = None
@@ -170,10 +172,7 @@ async def post_analyses(
         from src.level2_agent.models import EmailData
 
         # Construir headers como JSON string y cabeceras para el pipeline
-        if "multipart/form-data" in content_type:
-            headers_json = ""
-            cabeceras_list = []
-        elif isinstance(body, AnalisisMuestraRequest):
+        if "multipart/form-data" in content_type or isinstance(body, AnalisisMuestraRequest):
             headers_json = ""
             cabeceras_list = []
         else:
@@ -229,7 +228,7 @@ async def post_analyses(
     msg_id = f"api_{int(time.monotonic()*1000)}"
 
     # Persistir
-    ahora = datetime.now(tz=timezone.utc)
+    ahora = datetime.now(tz=UTC)
 
     analisis_p = AnalisisPersistido(
         message_id=msg_id,
@@ -250,7 +249,7 @@ async def post_analyses(
 
     resp = _persistido_a_response(analisis_p.model_dump(mode="json"))
     # Inyectar resumen y adjuntos en la respuesta
-    resp.resultado.resumen = resumen  # type: ignore[union-attr]
+    resp.resultado.resumen = resumen
     resp.resultado.adjuntos = adjuntos_resp
 
     # Poblar campos detallados del resultado
@@ -308,8 +307,8 @@ async def post_analyses(
     if report is not None and not dry_run:
         try:
             from src.level2_agent.acciones.ejecutor import ejecutar_acciones
-            from src.level2_agent.acciones.modelos import EntradaAcciones
             from src.level2_agent.acciones.jira_adapter import JiraReal
+            from src.level2_agent.acciones.modelos import EntradaAcciones
 
             # Construir entrada completa con el reporte del pipeline
             entrada_acc = EntradaAcciones(

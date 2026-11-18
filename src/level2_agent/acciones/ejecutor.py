@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.level2_agent.acciones.gmail_adapter import GmailAdapter
 from src.level2_agent.acciones.huella import calcular_huella
@@ -28,10 +28,8 @@ from src.level2_agent.acciones.modelos import (
     MAX_CHARS_SUMMARY_JIRA,
     Accion,
     EntradaAcciones,
-    Motivo,
     ResultadoAccion,
     ResultadoAcciones,
-    ResultadoJira,
 )
 from src.level2_agent.acciones.tabla import resolver_acciones
 
@@ -55,7 +53,7 @@ def _ya_procesado(message_id: str) -> ResultadoAcciones | None:
         try:
             from pymongo import MongoClient
 
-            client: object = MongoClient(uri, serverSelectionTimeoutMS=3000)  # type: ignore[import-untyped]
+            client: object = MongoClient(uri, serverSelectionTimeoutMS=3000)
             db = client["phishguard"]  # type: ignore[index]
             doc = db["acciones_ejecutadas"].find_one({"message_id": message_id})
             if doc:
@@ -73,7 +71,7 @@ def _registrar_procesado(message_id: str, resultado: ResultadoAcciones) -> None:
         try:
             from pymongo import MongoClient
 
-            client: object = MongoClient(uri, serverSelectionTimeoutMS=3000)  # type: ignore[import-untyped]
+            client: object = MongoClient(uri, serverSelectionTimeoutMS=3000)
             db = client["phishguard"]  # type: ignore[index]
             db["acciones_ejecutadas"].update_one(
                 {"message_id": message_id},
@@ -103,7 +101,7 @@ def ejecutar_acciones(
     6. Registra resultado para idempotencia.
     7. Retorna ResultadoAcciones.
     """
-    ts = ahora or datetime.now(tz=timezone.utc)
+    ts = ahora or datetime.now(tz=UTC)
     msg_id = entrada.message_id
 
     # 1. Idempotencia
@@ -177,14 +175,15 @@ def ejecutar_acciones(
                 ticket_key = resultado_acc.detalle
         except Exception as e:
             logger.error("Error ejecutando acción %s: %s", acc.value, e)
-            destino_err = "jira" if acc in (Accion.CREAR_TICKET, Accion.CREAR_TICKET_BAJA) else "gmail"
+            es_jira = acc in (Accion.CREAR_TICKET, Accion.CREAR_TICKET_BAJA)
+            destino_err = "jira" if es_jira else "gmail"
             resultados.append(
                 ResultadoAccion(
                     accion=acc,
                     destino=destino_err,  # type: ignore[arg-type]
                     identificador=msg_id,
                     ejecutada=False,
-                    motivo="error_jira" if destino_err == "jira" else "error_gmail",  # type: ignore[arg-type]
+                    motivo="error_jira" if destino_err == "jira" else "error_gmail",
                     timestamp=ts,
                     detalle=str(e),
                 )

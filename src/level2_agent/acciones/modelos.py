@@ -17,7 +17,6 @@ from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field
-
 from src.level2_agent.models import PhishingReport
 
 # --- Constantes de configuración (Art. III.6: sin números mágicos) ---

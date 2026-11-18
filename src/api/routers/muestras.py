@@ -9,7 +9,6 @@ import json
 from pathlib import Path
 
 from fastapi import APIRouter
-
 from src.api.deps import APIKeyDep
 from src.api.schemas.analisis import MuestraResponse
 

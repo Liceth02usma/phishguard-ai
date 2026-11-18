@@ -32,6 +32,15 @@ extend-exclude = [
     ".venv",
     "build",
     "dist",
+    # Auditoría 2026-11-17 (decisión D3): scripts ad-hoc de diagnóstico
+    # one-off. El gate de calidad solo cubre verify.py, check_* y entrenar_*.
+    "scripts/_*.py",
+    "scripts/test_*.py",
+    "scripts/e2e_*.py",
+    "scripts/reentrenar_*.py",
+    "scripts/verificar_modulos.py",
+    "scripts/verificar_integraciones.py",
+    "scripts/listar_proyectos_jira.py",
 ]
 
 [tool.ruff.lint]
@@ -39,6 +48,8 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]  # assert está bien en pruebas
+# Query() en defaults es el patrón estándar de FastAPI (auditoría 2026-11-17)
+"src/api/routers/*.py" = ["B008"]
 
 [tool.mypy]
 strict = true
@@ -48,7 +59,21 @@ files = ["scripts", "tests/unit"]
 # exime con ignore_errors (override src.*); el código nuevo de la spec 002
 # (models.py y normalizacion/) se type-checkea estricto con los overrides
 # de abajo, que van después y por eso prevalecen.
-exclude = ["notebooks/", "data/", "workflow/", "tests/test_pipeline.py"]
+exclude = [
+    "notebooks/",
+    "data/",
+    "workflow/",
+    "tests/test_pipeline.py",
+    # Auditoría 2026-11-17 (decisión D3, mismos patrones que ruff):
+    # scripts ad-hoc de diagnóstico one-off fuera de ambos gates.
+    "scripts/_.*\\.py",
+    "scripts/test_.*\\.py",
+    "scripts/e2e_.*\\.py",
+    "scripts/reentrenar_.*\\.py",
+    "scripts/verificar_modulos\\.py",
+    "scripts/verificar_integraciones\\.py",
+    "scripts/listar_proyectos_jira\\.py",
+]
 
 [[tool.mypy.overrides]]
 module = "tests.*"

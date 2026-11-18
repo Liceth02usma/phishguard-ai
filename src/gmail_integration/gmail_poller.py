@@ -45,12 +45,18 @@ POLL_INTERVAL = 30
 
 
 def _extraer_remitente(email_data: object) -> str:
-    """Extrae la dirección del remitente desde las cabeceras."""
+    """Extrae la dirección del remitente desde las cabeceras.
+
+    Auditoría AUD-02: `headers` es JSON con claves en minúsculas; la búsqueda
+    es case-insensitive para no depender del formato de la clave.
+    """
     import json
 
     try:
         headers = json.loads(email_data.headers) if email_data.headers else {}  # type: ignore[union-attr]
-        sender = headers.get("From", "")
+        sender = next(
+            (str(v) for k, v in headers.items() if str(k).lower() == "from"), ""
+        )
         if "<" in sender and ">" in sender:
             return sender.split("<")[1].split(">")[0].strip()
         return sender.strip()

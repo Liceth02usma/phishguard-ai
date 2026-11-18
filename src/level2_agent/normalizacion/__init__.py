@@ -15,6 +15,7 @@ Las entradas malformadas degradan con ``ENTRADA_DEGRADADA`` en vez de lanzar
 from __future__ import annotations
 
 import hashlib
+import json
 from typing import Any, Literal
 
 from src.level2_agent.models import Cabecera, EmailData
@@ -77,13 +78,16 @@ def _headers_legado(cabeceras: list[Cabecera]) -> str:
 
     Conserva la primera aparición de cada clave (legado/genético solo lee la
     primera). La fuente de verdad ordenada y con repetidas es `cabeceras`.
+
+    Auditoría AUD-02: era `str(vistos)` (repr de Python, comillas simples);
+    `json.loads` fallaba en todos los consumidores. Ahora es JSON válido.
     """
     vistos: dict[str, str] = {}
     for cab in cabeceras:
         clave = cab.nombre.lower()
         if clave not in vistos:
             vistos[clave] = cab.valor
-    return str(vistos)
+    return json.dumps(vistos)
 
 
 def _texto_para_llm(correo: CorreoBruto) -> str:

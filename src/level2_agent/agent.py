@@ -79,12 +79,19 @@ def _genetic_score(
 
 
 def _extraer_dominio_remitente(email_data: EmailData) -> str:
-    """Extrae el dominio del remitente desde las cabeceras del correo."""
+    """Extrae el dominio del remitente desde las cabeceras del correo.
+
+    Auditoría AUD-02: `headers` es JSON con claves en minúsculas; la búsqueda
+    es case-insensitive (antes `get("From")` siempre devolvía vacío y la
+    consulta VT del dominio nunca se ejecutaba).
+    """
     import json
 
     try:
         headers = json.loads(email_data.headers) if email_data.headers else {}
-        sender = headers.get("From", "")
+        sender = next(
+            (str(v) for k, v in headers.items() if str(k).lower() == "from"), ""
+        )
         if "@" in sender:
             # Extraer solo el email entre < > si existe
             if "<" in sender and ">" in sender:

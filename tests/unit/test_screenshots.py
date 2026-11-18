@@ -12,13 +12,12 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.level2_agent.acciones.modelos import EntradaAcciones
 from src.level2_agent.models import PhishingReport
-
 
 # --- HCTI adapter tests ---
 
@@ -86,7 +85,6 @@ class TestGenerarScreenshot:
     def test_error_http_retorna_none(self) -> None:
         """Error HTTP (401, 500) → None (degradación graceful)."""
         import httpx
-
         from src.level2_agent.screenshots import generar_screenshot
 
         os.environ["HCTI_API_ID"] = "test-id"
@@ -111,7 +109,6 @@ class TestGenerarScreenshot:
     def test_timeout_retorna_none(self) -> None:
         """Timeout → None (degradación graceful)."""
         import httpx
-
         from src.level2_agent.screenshots import generar_screenshot
 
         os.environ["HCTI_API_ID"] = "test-id"
@@ -211,16 +208,25 @@ class TestEntradaAccionesHtmlBody:
 class TestEjecutorConScreenshot:
     """Tests de integración del ejecutor con generación de screenshot."""
 
-    def test_ticket_malicioso_con_screenshot(self) -> None:
+    def test_ticket_malicioso_con_screenshot(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Ticket malicioso con html_body → descripción incluye screenshot URL."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from src.level2_agent.acciones import (
             EntradaAcciones,
             ejecutar_acciones,
         )
+        from src.level2_agent.acciones.ejecutor import _procesados
         from src.level2_agent.acciones.gmail_adapter import GmailAdapter
         from src.level2_agent.acciones.jira_adapter import JiraAdapter, ResultadoJira
+
+        # Aislamiento (auditoría AUD-01): sin esto, el message_id de este test
+        # se registraba en la BD real y a la corrida siguiente la idempotencia
+        # retornaba el ticket previo sin llamar crear_ticket.
+        monkeypatch.delenv("MONGODB_ATLAS_CLUSTER_URI", raising=False)
+        _procesados.clear()
 
         report = PhishingReport(
             resumen="Phishing detectado",
@@ -272,7 +278,7 @@ class TestEjecutorConScreenshot:
                     entrada,
                     gmail=gmail_mock,
                     jira=jira_mock,
-                    ahora=datetime.now(tz=timezone.utc),
+                    ahora=datetime.now(tz=UTC),
                 )
 
                 # Verificar que se creó el ticket
@@ -290,16 +296,23 @@ class TestEjecutorConScreenshot:
                 os.environ.pop("HCTI_API_KEY", None)
                 os.environ.pop("ACCIONES_DRY_RUN", None)
 
-    def test_ticket_sin_html_body_sin_screenshot(self) -> None:
+    def test_ticket_sin_html_body_sin_screenshot(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Ticket sin html_body → descripción sin screenshot."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from src.level2_agent.acciones import (
             EntradaAcciones,
             ejecutar_acciones,
         )
+        from src.level2_agent.acciones.ejecutor import _procesados
         from src.level2_agent.acciones.gmail_adapter import GmailAdapter
         from src.level2_agent.acciones.jira_adapter import JiraAdapter, ResultadoJira
+
+        # Aislamiento AUD-01 (mismo criterio que el test anterior).
+        monkeypatch.delenv("MONGODB_ATLAS_CLUSTER_URI", raising=False)
+        _procesados.clear()
 
         report = PhishingReport(
             resumen="Phishing detectado",
@@ -337,7 +350,7 @@ class TestEjecutorConScreenshot:
                 entrada,
                 gmail=gmail_mock,
                 jira=jira_mock,
-                ahora=datetime.now(tz=timezone.utc),
+                ahora=datetime.now(tz=UTC),
             )
 
             # Verificar que se creó el ticket

@@ -3,7 +3,7 @@ total 100; 55/15/30 por veredicto y 60,0 % sin modelo (FR-006)."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.level2_agent.persistencia.metricas import calcular_metricas
 from src.level2_agent.persistencia.repositorio import RepositorioDoble
@@ -13,7 +13,7 @@ from src.level2_agent.persistencia.siembra import sembrar_datos
 def test_metricas_siembra_total() -> None:
     """Siembra 100 → métricas.total == 100."""
     repo = RepositorioDoble()
-    n = sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    n = sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=UTC))
     assert n == 100
 
     docs = repo.listar({"origen": "siembra"})
@@ -28,7 +28,7 @@ def test_metricas_siembra_total() -> None:
 def test_metricas_siembra_por_veredicto() -> None:
     """Siembra → 55 sin_indicadores, 15 sospechoso, 30 malicioso."""
     repo = RepositorioDoble()
-    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=UTC))
     docs = repo.listar({"origen": "siembra"})
     from src.level2_agent.persistencia.modelos import AnalisisPersistido
     analisis = [AnalisisPersistido.model_validate(d) for d in docs]
@@ -42,7 +42,7 @@ def test_metricas_siembra_por_veredicto() -> None:
 def test_metricas_siembra_pct_sin_modelo() -> None:
     """Siembra → 60% resuelto sin modelo (heurística + reglas)."""
     repo = RepositorioDoble()
-    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=UTC))
     docs = repo.listar({"origen": "siembra"})
     from src.level2_agent.persistencia.modelos import AnalisisPersistido
     analisis = [AnalisisPersistido.model_validate(d) for d in docs]

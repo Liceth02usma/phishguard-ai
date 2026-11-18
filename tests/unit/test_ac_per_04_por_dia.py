@@ -3,7 +3,7 @@ incluidos los de cero (probar 7, 30 y 90 días y cambio de zona)."""
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime
 
 from src.level2_agent.persistencia.metricas import calcular_metricas
 from src.level2_agent.persistencia.modelos import AnalisisPersistido
@@ -14,7 +14,7 @@ from src.level2_agent.persistencia.siembra import sembrar_datos
 def test_por_dia_rango_7_dias() -> None:
     """Rango de 7 días → por_dia tiene 7 elementos."""
     repo = RepositorioDoble()
-    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=UTC))
     docs = repo.listar({"origen": "siembra"})
     analisis = [AnalisisPersistido.model_validate(d) for d in docs]
 
@@ -29,7 +29,7 @@ def test_por_dia_rango_7_dias() -> None:
 def test_por_dia_rango_30_dias() -> None:
     """Rango de 30 días → por_dia tiene 30 elementos."""
     repo = RepositorioDoble()
-    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=UTC))
     docs = repo.listar({"origen": "siembra"})
     analisis = [AnalisisPersistido.model_validate(d) for d in docs]
 
@@ -44,7 +44,7 @@ def test_por_dia_rango_30_dias() -> None:
 def test_por_dia_rango_90_dias() -> None:
     """Rango de 90 días → por_dia tiene 90 elementos."""
     repo = RepositorioDoble()
-    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=UTC))
     docs = repo.listar({"origen": "siembra"})
     analisis = [AnalisisPersistido.model_validate(d) for d in docs]
 
@@ -59,7 +59,7 @@ def test_por_dia_rango_90_dias() -> None:
 def test_por_dia_dias_en_cero() -> None:
     """Días sin análisis tienen total=0."""
     repo = RepositorioDoble()
-    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=UTC))
     docs = repo.listar({"origen": "siembra"})
     analisis = [AnalisisPersistido.model_validate(d) for d in docs]
 
@@ -77,7 +77,7 @@ def test_por_dia_dias_en_cero() -> None:
 def test_por_dia_cambio_zona_horaria() -> None:
     """Cambio de zona horaria puede cambiar la agrupación por día."""
     repo = RepositorioDoble()
-    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=timezone.utc))
+    sembrar_datos(repo=repo, ahora=datetime(2026, 10, 15, tzinfo=UTC))
     docs = repo.listar({"origen": "siembra"})
     analisis = [AnalisisPersistido.model_validate(d) for d in docs]
 

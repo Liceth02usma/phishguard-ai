@@ -6,12 +6,9 @@ entrada_acciones_ejemplo() construye una EntradaAcciones mínima.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from typing import Any
 
-from src.level2_agent.acciones.gmail_adapter import GmailAdapter
-from src.level2_agent.acciones.jira_adapter import JiraAdapter
 from src.level2_agent.acciones.modelos import (
-    Accion,
     EntradaAcciones,
     ResultadoJira,
 )
@@ -57,7 +54,7 @@ class JiraDoble:
         self._ticket_existente = ticket_existente
         self._next_key = 1
 
-    def crear_ticket(self, campos: dict) -> ResultadoJira:
+    def crear_ticket(self, campos: dict[str, Any]) -> ResultadoJira:
         self.llamadas.append(("crear_ticket", str(campos)))
         if self._fallar:
             raise ConnectionError("Jira no disponible")

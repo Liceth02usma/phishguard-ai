@@ -6,8 +6,6 @@ Se prueba en N-1 (modelo llamado), N (modelo llamado), N+1
 
 from __future__ import annotations
 
-from src.level2_agent.agente.modelos import ResultadoAgente
-
 from dobles_agente import ContadorDoble, ModeloDoble, entrada_agente_ejemplo
 
 
@@ -23,7 +21,7 @@ def test_tope_n_menos_1_llama_modelo() -> None:
 
     from src.level2_agent.agente.agente import consultar_agente
 
-    resultado = consultar_agente(entrada, modelo=modelo, contador=contador)
+    resultado = consultar_agente(entrada, modelo=modelo, contador=contador)  # type: ignore[arg-type]
     assert resultado.razon == "exito"
     assert resultado.llamadas_modelo >= 1
     assert len(modelo.llamadas) >= 1
@@ -44,7 +42,7 @@ def test_tope_n_llama_modelo() -> None:
 
     # N es el tope → disponible() retorna False
     assert not contador.disponible()
-    resultado = consultar_agente(entrada, modelo=modelo, contador=contador)
+    resultado = consultar_agente(entrada, modelo=modelo, contador=contador)  # type: ignore[arg-type]
     assert resultado.razon == "tope_superado"
     assert resultado.llamadas_modelo == 0
     assert resultado.confirmacion_agente is None
@@ -62,7 +60,7 @@ def test_tope_n_mas_1_no_llama_modelo() -> None:
 
     from src.level2_agent.agente.agente import consultar_agente
 
-    resultado = consultar_agente(entrada, modelo=modelo, contador=contador)
+    resultado = consultar_agente(entrada, modelo=modelo, contador=contador)  # type: ignore[arg-type]
     assert resultado.razon == "tope_superado"
     assert resultado.llamadas_modelo == 0
     assert len(modelo.llamadas) == 0

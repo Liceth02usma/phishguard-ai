@@ -12,7 +12,6 @@ from datetime import date
 
 from src.level2_agent.agente.modelos import (
     EntradaAgente,
-    ResultadoAgente,
     SalidaAgente,
 )
 from src.level2_agent.banderas.modelos import EstadosAutenticacion

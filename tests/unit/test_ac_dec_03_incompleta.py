@@ -60,7 +60,7 @@ def test_verificacion_incompleta_nunca_sin_indicadores() -> None:
         entrada = entrada_ejemplo(
             score=0,
             verificaciones_incompletas=[
-                VerificacionIncompleta(tipo=tipo, razon="test"),  # type: ignore[arg-type]
+                VerificacionIncompleta(tipo=tipo, razon="test"),
             ],
         )
         from src.level2_agent.decision.motor import evaluar_veredicto

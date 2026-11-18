@@ -9,7 +9,6 @@ import pytest
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-
 from src.api.app import create_app
 from src.api.errors import ServicioNoDisponibleError
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble

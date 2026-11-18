@@ -68,8 +68,13 @@ def test_poller_construye_emaildata_normalizado(
         return reporte
 
     monkeypatch.setattr(mod_poller, "analyze_email", _capturar)
-    monkeypatch.setattr(mod_poller, "move_to_label", lambda *a, **k: None)
-    monkeypatch.setattr(mod_poller, "mark_as_read", lambda *a, **k: None)
+    # El fallback importa desde gmail_reader en tiempo de llamada (auditoría:
+    # antes se parcheaba mod_poller.move_to_label, que nunca existió y el
+    # test fallaba con AttributeError en suite completa).
+    import src.gmail_integration.gmail_reader as mod_reader
+
+    monkeypatch.setattr(mod_reader, "move_to_label", lambda *a, **k: None)
+    monkeypatch.setattr(mod_reader, "mark_as_read", lambda *a, **k: None)
 
     mod_poller.process_message(service, "msgid-123")
 

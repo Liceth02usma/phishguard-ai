@@ -10,7 +10,6 @@ import json
 import os
 
 import pytest
-
 from src.level2_agent.models import EmailData
 
 # Severidades del modelo (con tilde)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pathlib
 
-from dobles_agente import ModeloDoble, ContadorDoble, entrada_agente_ejemplo
+from dobles_agente import ContadorDoble, ModeloDoble
 
 
 def test_modelo_doble_no_es_real() -> None:
@@ -46,7 +46,7 @@ def test_todas_pruebas_usan_dobles() -> None:
         "test_ac_agt_06_simuladas",
     ]:
         mod = importlib.import_module(name)
-        source = pathlib.Path(mod.__file__).read_text(encoding="utf-8")
+        source = pathlib.Path(mod.__file__ or "").read_text(encoding="utf-8")
         # Todos deben importar dobles_agente o ModeloDoble
         assert "dobles_agente" in source or "ModeloDoble" in source, (
             f"{name} no usa dobles_agente"

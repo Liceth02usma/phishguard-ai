@@ -3,10 +3,7 @@ retroalimentación, y correcta cuando la hay."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
 from src.level2_agent.persistencia.metricas import calcular_metricas
-from src.level2_agent.persistencia.modelos import AnalisisPersistido
 
 from dobles_persistencia import entrada_persistido_ejemplo
 

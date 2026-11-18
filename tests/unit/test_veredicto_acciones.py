@@ -8,11 +8,7 @@ Verifica que:
 
 from __future__ import annotations
 
-import os
-
-import pytest
-
-from src.level2_agent.models import EmailData, PhishingReport
+from src.level2_agent.models import PhishingReport
 
 
 class TestVeredictoEnReporte:
@@ -72,7 +68,7 @@ class TestVeredictoAEjecutor:
 
     def test_malicioso_genera_acciones_completas(self) -> None:
         """veredicto="malicioso" → etiquetar + archivar + ticket."""
-        from src.level2_agent.acciones import resolver_acciones, Accion
+        from src.level2_agent.acciones import Accion, resolver_acciones
 
         acciones = resolver_acciones("malicioso")
         assert Accion.ETIQUETAR_PHISHING in acciones
@@ -81,7 +77,7 @@ class TestVeredictoAEjecutor:
 
     def test_sospechoso_genera_etiquetar_y_ticket_baja(self) -> None:
         """veredicto="sospechoso" → etiquetar revisar + ticket baja."""
-        from src.level2_agent.acciones import resolver_acciones, Accion
+        from src.level2_agent.acciones import Accion, resolver_acciones
 
         acciones = resolver_acciones("sospechoso")
         assert Accion.ETIQUETAR_REVISAR in acciones
@@ -89,7 +85,7 @@ class TestVeredictoAEjecutor:
 
     def test_revision_manual_genera_etiquetar_y_ticket_baja(self) -> None:
         """veredicto="revision_manual" → etiquetar revisar + ticket baja."""
-        from src.level2_agent.acciones import resolver_acciones, Accion
+        from src.level2_agent.acciones import Accion, resolver_acciones
 
         acciones = resolver_acciones("revision_manual")
         assert Accion.ETIQUETAR_REVISAR in acciones
@@ -97,7 +93,7 @@ class TestVeredictoAEjecutor:
 
     def test_sin_indicadores_solo_marca_leido(self) -> None:
         """veredicto="sin_indicadores" → solo marcar leído."""
-        from src.level2_agent.acciones import resolver_acciones, Accion
+        from src.level2_agent.acciones import Accion, resolver_acciones
 
         acciones = resolver_acciones("sin_indicadores")
         assert acciones == [Accion.MARCAR_LEIDO]

@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
-import pytest
-
 import os
 
+import pytest
 from fastapi.testclient import TestClient
-
 from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
+
+
+@pytest.fixture(autouse=True)
+def _aislar_entorno_mongo(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Aísla de MongoDB real (auditoría AUD-01).
+
+    `test_dry_run_explicit_false` ejecuta el acciones real vía API y, sin
+    este delenv, escriía `api_<ts>` en la BD de producción (idempotencia).
+    """
+    monkeypatch.delenv("MONGODB_ATLAS_CLUSTER_URI", raising=False)
 
 
 def _client() -> TestClient:

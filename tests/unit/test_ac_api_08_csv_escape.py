@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
-
-from datetime import datetime, timedelta, timezone
-
 from src.api.csv_export import generar_csv
 from src.api.schemas.analisis import (
     AccionResponse,
@@ -20,7 +19,7 @@ def _make_response(i: int) -> AnalisisResponse:
         id=f"msg_{i:04d}",
         origen="api",
         modo="pegar",
-        creado_en=datetime.now(tz=timezone.utc),
+        creado_en=datetime.now(tz=UTC),
         duracion_ms=100,
         correo=CorreoResponse(
             remitente="t***@test.com",

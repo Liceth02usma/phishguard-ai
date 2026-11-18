@@ -3,11 +3,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+from src.level2_agent.persistencia.guardado import guardar_analisis
 from src.level2_agent.persistencia.repositorio import RepositorioDoble
 from src.level2_agent.persistencia.siembra import sembrar_datos
-from src.level2_agent.persistencia.guardado import guardar_analisis
 
 from dobles_persistencia import entrada_persistido_ejemplo
 
@@ -15,7 +15,7 @@ from dobles_persistencia import entrada_persistido_ejemplo
 def test_siembra_idempotente() -> None:
     """Siembra 2 veces → exactamente 100 docs con origen=siembra."""
     repo = RepositorioDoble()
-    ts = datetime(2026, 10, 15, tzinfo=timezone.utc)
+    ts = datetime(2026, 10, 15, tzinfo=UTC)
 
     n1 = sembrar_datos(repo=repo, ahora=ts)
     assert n1 == 100
@@ -40,7 +40,7 @@ def test_siembra_no_toca_usuario() -> None:
     # Ejecutar siembra
     sembrar_datos(
         repo=repo,
-        ahora=datetime(2026, 10, 15, tzinfo=timezone.utc),
+        ahora=datetime(2026, 10, 15, tzinfo=UTC),
     )
 
     # El documento de usuario sigue existiendo

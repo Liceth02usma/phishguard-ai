@@ -6,7 +6,7 @@ entrada_persistido_ejemplo() construye un AnalisisPersistido mínimo.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from src.level2_agent.persistencia.modelos import AnalisisPersistido
 
@@ -21,7 +21,7 @@ def entrada_persistido_ejemplo(
     retroalimentacion: str | None = None,
 ) -> AnalisisPersistido:
     """Construye un AnalisisPersistido mínimo con valores por defecto."""
-    ahora = datetime(2026, 10, 15, 12, 0, 0, tzinfo=timezone.utc)
+    ahora = datetime(2026, 10, 15, 12, 0, 0, tzinfo=UTC)
     return AnalisisPersistido(
         message_id=message_id,
         origen=origen,  # type: ignore[arg-type]

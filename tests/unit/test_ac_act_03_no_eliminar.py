@@ -30,7 +30,12 @@ def test_gmail_adapter_no_tiene_eliminar() -> None:
 
 def test_ast_gate_no_eliminar() -> None:
     """AST gate: ningún archivo en acciones/ contiene trash/delete/eliminar como identificador."""
-    acciones_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "src" / "level2_agent" / "acciones"
+    acciones_dir = (
+        pathlib.Path(__file__).resolve().parent.parent.parent
+        / "src"
+        / "level2_agent"
+        / "acciones"
+    )
     prohibidas = {"trash", "delete", "eliminar"}
     for py_file in acciones_dir.glob("*.py"):
         source = py_file.read_text(encoding="utf-8")

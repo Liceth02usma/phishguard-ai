@@ -6,11 +6,14 @@ jira_integration como herramientas. Solo busqueda_vectorial (RAG).
 
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from src.level2_agent.agente.agente import _construir_herramientas
 
-from dobles_agente import ModeloDoble  # AC-AGT-06: usa doble
+# Import deliberado (AC-AGT-06): este archivo verifica herramientas y no el
+# modelo, pero el meta-test test_todas_pruebas_usan_dobles exige que todos
+# los archivos test_ac_agt_* referencien los dobles. noqa: F401 a propósito.
+from dobles_agente import ModeloDoble  # noqa: F401
 
 
 def _mock_retriever() -> MagicMock:

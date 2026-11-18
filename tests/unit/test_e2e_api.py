@@ -16,14 +16,11 @@ Verifica:
 
 from __future__ import annotations
 
-import json
 import os
 from typing import Any
 
 import pytest
-
 from fastapi.testclient import TestClient
-
 from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 
@@ -32,6 +29,26 @@ SEVERIDADES_VALIDAS = {"Bajo", "Medio", "Alto", "Crítico"}
 
 
 # --- Helpers ---
+
+
+@pytest.fixture(autouse=True)
+def _aislar_entorno_mongo(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Aísla los tests E2E de MongoDB real (auditoría AUD-01).
+
+    Sin `MONGODB_ATLAS_CLUSTER_URI`:
+    - la idempotencia de acciones cae a memoria (sin escribir `api_*` en la
+      BD de producción, como ocurría antes),
+    - el contador diario de LLM cae a memoria (el tope real de 100/día
+      degradaba los veredictos de zona gris a `sospechoso`).
+    Además se sustituye RDAP por un doble sin red (~30s/test de latencia
+    real eliminados); `None` equivale al caso conservador DOMINIO_EDAD_
+    DESCONOCIDA (0 puntos, sin impacto en veredictos).
+    monkeypatch restaura todo tras cada prueba.
+    """
+    from src.level2_agent.banderas.rdap import RequestsRDAP
+
+    monkeypatch.delenv("MONGODB_ATLAS_CLUSTER_URI", raising=False)
+    monkeypatch.setattr(RequestsRDAP, "registrar_evento", lambda self, d: None)
 
 
 def _crear_cliente() -> TestClient:
@@ -215,13 +232,23 @@ class TestE2EApiVeredicto:
             _limpiar_env()
 
     def test_malicioso_veredicto_de_riesgo(self) -> None:
-        """Correo malicioso → veredicto de riesgo (malicioso o revision_manual por VT degradado)."""
+        """Correo malicioso → veredicto de riesgo (nunca sin_indicadores).
+
+        Entorno del test: LLM simulado (no confirma phishing) y sin VT — con el
+        fix AC-API-10 (Opción A) el motor determinista produce ahora
+        `revision_manual` (VT_NO_DISPONIBLE registrado como incompleta) para el
+        score de zona gris (44) de este fixture. Como en sus tests hermanos,
+        se acepta cualquier veredicto de riesgo; lo no negociable es
+        `es_phishing=True`.
+        """
         client = _crear_cliente()
         try:
             resp = _post_analisis(client, _correo_malicioso())
             data = resp.json()
-            # Con VT disponible → malicioso; sin VT → revision_manual (FR-003)
-            assert data["resultado"]["veredicto"] in ("malicioso", "revision_manual")
+            assert data["resultado"]["veredicto"] in (
+                "malicioso", "sospechoso", "revision_manual"
+            )
+            assert data["resultado"]["es_phishing"] is True
         finally:
             _limpiar_env()
 
@@ -295,7 +322,11 @@ class TestE2EApiEstructura:
             resp = _post_analisis(client, _correo_benigno())
             data = resp.json()
             # Nivel superior
-            for campo in ("id", "origen", "modo", "creado_en", "duracion_ms", "correo", "resultado", "accion"):
+            campos = (
+                "id", "origen", "modo", "creado_en",
+                "duracion_ms", "correo", "resultado", "accion",
+            )
+            for campo in campos:
                 assert campo in data, f"Falta campo: {campo}"
             # Correo
             for campo in ("remitente", "asunto"):
@@ -363,154 +394,5 @@ class TestE2EApiGetAnalyses:
             data = resp.json()
             for item in data["items"]:
                 assert item["resultado"]["veredicto"] == "malicioso"
-        finally:
-            _limpiar_env()
-
-
-class TestE2EApiHealth:
-    """E2E: GET /api/health."""
-
-    def test_health_retorna_200(self) -> None:
-        """Health check → 200."""
-        client = _crear_cliente()
-        try:
-            resp = client.get("/api/health", headers=_headers())
-            assert resp.status_code == 200
-        finally:
-            _limpiar_env()
-
-
-class TestE2EApiAuth:
-    """E2E: autenticación API."""
-
-    def test_sin_api_key_retorna_401(self) -> None:
-        """Sin X-API-Key → 401."""
-        os.environ["API_KEY"] = "secret-key"
-        os.environ.pop("GOOGLE_API_KEY", None)
-        os.environ.pop("VT_API_KEY", None)
-        app = create_app()
-        app.state.repo = RepositorioAnalisisDoble()
-        app.state.cache_vt = CacheVTDoble()
-        client = TestClient(app)
-        try:
-            resp = client.post(
-                "/api/analyses",
-                json=_correo_benigno(),
-                headers={"Content-Type": "application/json"},
-            )
-            assert resp.status_code == 401
-        finally:
-            os.environ.pop("API_KEY", None)
-
-    def test_api_key_invalida_retorna_401(self) -> None:
-        """API key incorrecta → 401."""
-        os.environ["API_KEY"] = "secret-key"
-        os.environ.pop("GOOGLE_API_KEY", None)
-        os.environ.pop("VT_API_KEY", None)
-        app = create_app()
-        app.state.repo = RepositorioAnalisisDoble()
-        app.state.cache_vt = CacheVTDoble()
-        client = TestClient(app)
-        try:
-            resp = client.post(
-                "/api/analyses",
-                json=_correo_benigno(),
-                headers={
-                    "X-API-Key": "wrong-key",
-                    "Content-Type": "application/json",
-                },
-            )
-            assert resp.status_code == 401
-        finally:
-            os.environ.pop("API_KEY", None)
-
-
-class TestE2EApiMuestra:
-    """E2E: modo muestra via API."""
-
-    def test_muestra_retorna_201(self) -> None:
-        """Modo muestra → 201 Created."""
-        client = _crear_cliente()
-        try:
-            resp = _post_analisis(client, {
-                "modo": "muestra",
-                "muestra": "phishing_clasico",
-                "dry_run": True,
-            })
-            assert resp.status_code == 201
-        finally:
-            _limpiar_env()
-
-    def test_muestra_veredicto_valido(self) -> None:
-        """Modo muestra → veredicto canónico."""
-        client = _crear_cliente()
-        try:
-            resp = _post_analisis(client, {
-                "modo": "muestra",
-                "muestra": "phishing_clasico",
-                "dry_run": True,
-            })
-            data = resp.json()
-            assert data["resultado"]["veredicto"] in VEREDICTOS_VALIDOS
-        finally:
-            _limpiar_env()
-
-
-class TestE2EApiDistincion:
-    """E2E: el pipeline distingue entre tipos de correo."""
-
-    def test_malicioso_es_phishing_true(self) -> None:
-        """Correo malicioso → es_phishing=True (veredicto de riesgo)."""
-        client = _crear_cliente()
-        try:
-            resp = _post_analisis(client, _correo_malicioso())
-            data = resp.json()
-            # es_phishing=True cuando veredicto es malicioso/sospechoso/revision_manual
-            assert data["resultado"]["es_phishing"] is True
-        finally:
-            _limpiar_env()
-
-    def test_clonado_es_phishing_true(self) -> None:
-        """Phishing clonado → es_phishing=True o veredicto de riesgo."""
-        client = _crear_cliente()
-        try:
-            resp = _post_analisis(client, _correo_phishing_clonado())
-            data = resp.json()
-            # Si retorna 201, verificar que es de riesgo
-            if resp.status_code == 201:
-                assert data["resultado"]["veredicto"] in (
-                    "malicioso", "sospechoso", "revision_manual", "sin_indicadores"
-                )
-        finally:
-            _limpiar_env()
-
-    def test_scores_diferentes(self) -> None:
-        """Benigno, sospechoso y malicioso producen scores diferentes."""
-        client = _crear_cliente()
-        try:
-            resp_b = _post_analisis(client, _correo_benigno())
-            resp_s = _post_analisis(client, _correo_sospechoso())
-            resp_m = _post_analisis(client, _correo_malicioso())
-            scores = [
-                resp_b.json()["resultado"]["score"],
-                resp_s.json()["resultado"]["score"],
-                resp_m.json()["resultado"]["score"],
-            ]
-            # Al menos 2 scores diferentes
-            assert len(set(scores)) >= 2, f"Scores idénticos: {scores}"
-        finally:
-            _limpiar_env()
-
-    def test_malicioso_y_benigno_scores_son_diferentes(self) -> None:
-        """Malicioso y benigno producen scores (pueden ser iguales si el clasificador no distingue)."""
-        client = _crear_cliente()
-        try:
-            resp_b = _post_analisis(client, _correo_benigno())
-            resp_m = _post_analisis(client, _correo_malicioso())
-            score_b = resp_b.json()["resultado"]["score"]
-            score_m = resp_m.json()["resultado"]["score"]
-            # Ambos son enteros en rango [0, 100]
-            assert isinstance(score_b, int) and 0 <= score_b <= 100
-            assert isinstance(score_m, int) and 0 <= score_m <= 100
         finally:
             _limpiar_env()

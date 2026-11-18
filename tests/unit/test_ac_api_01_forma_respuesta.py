@@ -6,7 +6,6 @@ import os
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 

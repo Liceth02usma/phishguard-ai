@@ -8,7 +8,6 @@ from __future__ import annotations
 import os
 
 from httpx import ASGITransport, AsyncClient
-
 from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 from src.level2_agent.persistencia.siembra import sembrar_datos
@@ -22,9 +22,9 @@ def test_metricas_sobre_datos_de_siembra() -> None:
     app.state.cache_vt = CacheVTDoble()
 
     # Sembrar datos deterministas (55 sin_indicadores, 15 sospechoso, 30 malicioso)
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    ahora = datetime.now(tz=timezone.utc)
+    ahora = datetime.now(tz=UTC)
     sembrar_datos(repo=repo, ahora=ahora)
 
     c = TestClient(app)
@@ -57,9 +57,9 @@ def test_metricas_rango_7d_solo_ultimos_7_dias() -> None:
     app.state.repo = repo
     app.state.cache_vt = CacheVTDoble()
 
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    ahora = datetime.now(tz=timezone.utc)
+    ahora = datetime.now(tz=UTC)
     sembrar_datos(repo=repo, ahora=ahora)
 
     c = TestClient(app)

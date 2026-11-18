@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from src.level2_agent.persistencia.repositorio import RepositorioDoble
 from src.level2_agent.persistencia.modelos import (
     RETENCION_ANALISIS_DIAS,
     RETENCION_FALLIDOS_DIAS,
 )
+from src.level2_agent.persistencia.repositorio import RepositorioDoble
 
 
 def test_indices_tlb_en_doble() -> None:

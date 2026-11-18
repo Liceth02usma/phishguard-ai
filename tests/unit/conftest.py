@@ -7,7 +7,6 @@ spec 001 (Art. II.5 — sin red real).
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
@@ -15,7 +14,7 @@ from typing import Any
 import pytest
 
 # Respuesta determinista del doble del agente ReAct (spec 001, research D7).
-REPORTE_FALSO = {
+REPORTE_FALSO: dict[str, Any] = {
     "resumen": "Análisis del correo bajo revisión por el agente.",
     "analisis_tecnico": "Evidencia contrastada con marcos NIST y OWASP por el doble.",
     "indicadores_phishing": ["patron_sospechoso_uno", "patron_sospechoso_dos"],
@@ -49,34 +48,57 @@ def tmp_py_file(tmp_path: Path) -> Iterator[Path]:
 
 
 class _AgenteReActFalso:
-    """Doble del agente ReAct: mismo input → misma respuesta JSON (sin red)."""
+    """Doble del agente: mismo input → misma respuesta (determinista, sin red).
 
-    def invoke(self, state: dict[str, Any]) -> dict[str, Any]:
-        """Devuelve el reporte fijo en el formato que consume analyze_email."""
-        from langchain_core.messages import AIMessage
+    Auditoría 2026-11-17: el ReAct original se eliminó en spec 009; ahora el
+    fixture sustituye `consultar_agente` (el import que hace
+    `_agente_zona_gris` en tiempo de llamada) con un ResultadoAgente fijo.
+    """
 
-        contenido = json.dumps(REPORTE_FALSO, ensure_ascii=False)
-        return {"messages": [AIMessage(content=contenido)]}
+    def __init__(self) -> None:
+        from src.level2_agent.agente.modelos import ResultadoAgente, SalidaAgente
+
+        self.resultado = ResultadoAgente(
+            salida=SalidaAgente(
+                resumen=REPORTE_FALSO["resumen"],
+                analisis_tecnico=REPORTE_FALSO["analisis_tecnico"],
+                es_phishing=REPORTE_FALSO["es_phishing"],
+                indicadores_phishing=list(REPORTE_FALSO["indicadores_phishing"]),
+                nivel_severidad=REPORTE_FALSO["nivel_severidad"],
+                justificacion_veredicto=REPORTE_FALSO["justificacion_veredicto"],
+            ),
+            confirmacion_agente=True,
+            reintentos=0,
+            llamadas_modelo=1,
+            razon="exito",
+        )
+
+    def __call__(self, entrada: Any, **kwargs: Any) -> Any:
+        """Mismo input → mismo resultado fijo (sin red, sin contador real)."""
+        return self.resultado
 
 
 @pytest.fixture
 def agente_react_falso(monkeypatch: pytest.MonkeyPatch) -> _AgenteReActFalso:
-    """Sustituye LLM y agente por dobles deterministas (sin API key ni red)."""
-    import src.level2_agent.agent as mod_agent
+    """Sustituye consultar_agente por doble determinista (sin API key ni red)."""
+    import src.level2_agent.agente as mod_agente
 
-    monkeypatch.setattr(mod_agent, "_ensure_llm", lambda: None)
     agente = _AgenteReActFalso()
-    monkeypatch.setattr(mod_agent, "_get_react_agent", lambda: agente)
+    monkeypatch.setattr(mod_agente, "consultar_agente", agente)
     return agente
 
 
 @pytest.fixture
 def sin_red_jira(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Sustituye create_jira_ticket por un stub sin efectos externos."""
-    import src.level2_agent.agent as mod_agent
+    """Sustituye create_jira_ticket por un stub sin efectos externos.
+
+    Auditoría 2026-11-17: agent.py ya no llama Jira (spec 009/010); el stub
+    se aplica al módulo donde la función aún vive por si algún camino la usa.
+    """
+    import src.level2_agent.tools.jira_integration as mod_jira
 
     monkeypatch.setattr(
-        mod_agent, "create_jira_ticket", lambda reporte: {"simulado": True}
+        mod_jira, "create_jira_ticket", lambda reporte: {"simulado": True}
     )
 
 

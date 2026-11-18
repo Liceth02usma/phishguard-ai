@@ -9,9 +9,7 @@ from __future__ import annotations
 import os
 
 import pytest
-
 from src.level2_agent.agente.modelos import SalidaAgente
-
 
 # --- Factory tests ---
 
@@ -149,8 +147,8 @@ class TestGroqAdapter:
     def test_groq_modelo_default(self) -> None:
         """GroqAdapter usa el modelo default si no se especifica."""
         from src.level2_agent.agente.groq_adapter import (
-            GroqAdapter,
             GROQ_MODELO_DEFAULT,
+            GroqAdapter,
         )
 
         os.environ.pop("LLM_MODELO", None)
@@ -191,6 +189,12 @@ class TestIntegracionFactory:
             ),
         )
         modelo = crear_modelo("simulado")
-        resultado = consultar_agente(entrada, modelo=modelo)
+        # Contador aislado (auditoría): sin él, el tope diario real de
+        # MongoDB (llm_contador, agotado a 100/100) retornaba tope_superado.
+        from dobles_agente import ContadorDoble
+
+        resultado = consultar_agente(
+            entrada, modelo=modelo, contador=ContadorDoble()  # type: ignore[arg-type]
+        )
         assert resultado is not None
         assert resultado.salida is not None

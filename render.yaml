@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: phishguard-ai-api
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: API_KEY
+        sync: false          # secreto — se configura en el dashboard de Render
+      - key: MONGODB_ATLAS_CLUSTER_URI
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: LLM_PROVEEDOR
+        value: gemini
+      - key: LLM_MODELO
+        value: models/gemini-2.5-flash-lite
+      - key: LLM_MAX_DIARIO
+        value: "100"
+      - key: ACCIONES_DRY_RUN
+        value: "true"
+      - key: CORS_ORIGINS
+        value: ""

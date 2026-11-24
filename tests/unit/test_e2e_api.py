@@ -83,7 +83,12 @@ def _limpiar_env() -> None:
 
 
 def _correo_benigno() -> dict[str, Any]:
-    """Correo interno benigno: reunión de equipo."""
+    """Correo interno benigno: reunión de equipo.
+
+    Incluye Authentication-Results con authserv-id confiable y spf/dkim/dmarc
+    pass (auditoría 2026-11-20): sin él, AUTH_NO_EVALUABLE suma +5 y el score
+    (26+5=31) caería en la zona gris.
+    """
     return {
         "modo": "pegar",
         "dry_run": True,
@@ -94,12 +99,19 @@ def _correo_benigno() -> dict[str, Any]:
         "headers": {
             "From": "colega@ucaldas.edu.co",
             "To": "equipo@ucaldas.edu.co",
+            "Authentication-Results": (
+                "mail.ucaldas.edu.co; spf=pass; dkim=pass; dmarc=pass"
+            ),
         },
     }
 
 
 def _correo_sospechoso() -> dict[str, Any]:
-    """Correo sospechoso: remitente externo + urgencia + URL acortador."""
+    """Correo sospechoso: remitente externo + urgencia + URL acortador.
+
+    dkim=none (auditoría 2026-11-20): la triple falla queda bloqueada para
+    que R4 NO dispare y el veredicto siga siendo `sospechoso`.
+    """
     return {
         "modo": "pegar",
         "dry_run": True,
@@ -114,18 +126,25 @@ def _correo_sospechoso() -> dict[str, Any]:
         "headers": {
             "From": "no-reply@banco-seguro.com",
             "To": "usuario@ucaldas.edu.co",
-            "Authentication-Results": "spf=fail; dkim=none; dmarc=fail",
+            "Authentication-Results": (
+                "mail.ucaldas.edu.co; spf=fail; dkim=none; dmarc=fail"
+            ),
         },
     }
 
 
 def _correo_malicioso() -> dict[str, Any]:
-    """Correo malicioso: muchos indicadores + auth fallida + script PHP."""
+    """Correo malicioso: muchos indicadores + auth fallida + script PHP.
+
+    Cadena R4 (auditoría 2026-11-20): authserv-id confiable con spf/dkim/dmarc
+    fail (triple falla evaluable) + nombre visible con la marca "ucaldas" en
+    dominio externo → NOMBRE_SUPLANTA → R4 → veredicto `malicioso`.
+    """
     return {
         "modo": "pegar",
         "dry_run": True,
         "subject": "URGENTE: Factura vencida — acción requerida inmediatamente",
-        "from": "facturas@banc0-seguro.xyz",
+        "from": "UCaldas Facturas <facturas@banc0-seguro.xyz>",
         "to": "usuario@ucaldas.edu.co",
         "text": (
             "Estimado cliente, su factura está vencida. "
@@ -133,9 +152,11 @@ def _correo_malicioso() -> dict[str, Any]:
             "para evitar suspensión del servicio."
         ),
         "headers": {
-            "From": "facturas@banc0-seguro.xyz",
+            "From": "UCaldas Facturas <facturas@banc0-seguro.xyz>",
             "To": "usuario@ucaldas.edu.co",
-            "Authentication-Results": "spf=fail; dkim=fail; dmarc=fail",
+            "Authentication-Results": (
+                "mail.ucaldas.edu.co; spf=fail; dkim=fail; dmarc=fail"
+            ),
             "X-PHP-Originating-Script": "1234:mail.php",
         },
     }

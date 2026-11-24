@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,13 +23,21 @@ def test_rate_limit_429_despues_de_30() -> None:
     headers = {"X-API-Key": "test-key"}
     body = {"modo": "pegar", "subject": "Test", "text": "x"}
 
-    # 30 requests → todas 201
-    for _ in range(30):
-        r = c.post("/api/analyses", json=body, headers=headers)
-        assert r.status_code == 201, f"Expected 201, got {r.status_code}"
+    # Parchear pipeline para que sea instantáneo: cada llamada tarda ~2s y
+    # con 30 requests el primer timestamp saldría de la ventana de 60s antes
+    # del request 31. AC-API-10 captura el RuntimeError → 201 de igual forma.
+    with patch(
+        "src.level2_agent.agent.analyze_email",
+        side_effect=RuntimeError("mock-rate-limit"),
+    ):
+        # 30 requests → todas 201 (graceful degradation AC-API-10)
+        for _ in range(30):
+            r = c.post("/api/analyses", json=body, headers=headers)
+            assert r.status_code == 201, f"Expected 201, got {r.status_code}"
 
-    # Request 31 → 429
-    r = c.post("/api/analyses", json=body, headers=headers)
+        # Request 31 → 429 (el middleware intercepta antes del handler)
+        r = c.post("/api/analyses", json=body, headers=headers)
+
     assert r.status_code == 429
     data = r.json()
     assert data["error"]["codigo"] == "DEMASIADAS_SOLICITUDES"

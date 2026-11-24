@@ -204,7 +204,7 @@ def _evaluar_banderas_cabeceras(email_data: EmailData) -> tuple[object, object]:
 
 def generate_benign_report(score: float) -> PhishingReport:
     return PhishingReport(
-        resumen="Tráfico seguro confirmado: Notificación automatizada del sistema que clasifica el correo electrónico como mensaje legítimo.",
+        resumen="Sin indicios de phishing: Notificación automatizada del sistema que clasifica el correo electrónico como mensaje legítimo.",
         analisis_tecnico=f"Evaluación inicial satisfactoria. El score de riesgo obtenido es de {score:.0f}/100, manteniéndose por debajo del umbral de sospecha ({SCORE_UMBRAL_BAJO}/100).",
         indicadores_phishing=[],
         es_phishing=False,

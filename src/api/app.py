@@ -5,6 +5,9 @@ create_app() → FastAPI con routers, middleware, exception handlers.
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +22,11 @@ from .routers import analisis, integraciones, jobs, metricas, muestras, salud
 
 def create_app() -> FastAPI:
     """Crea la aplicación FastAPI con todos los routers y middleware."""
+    # Auditoría 2026-11-20: cargar .env de la raíz en el arranque. Antes la
+    # API dependía del efecto secundario del import de agent.py (load_dotenv
+    # en módulo), lo que hacía frágil el orden de imports.
+    load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
+
     app = FastAPI(
         title="PhishGuard-AI API",
         version="1.0.0",

@@ -1,0 +1,1 @@
+& 'C:\Users\Liceth Usma\Documents\.Semestre 10\creatividad_innovacion\proyecto_final2\phishguard-ai\.venv\Scripts\python.exe' -m src.api --host 0.0.0.0 --port 8001

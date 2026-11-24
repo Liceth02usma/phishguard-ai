@@ -10,4 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy
-        run: curl -f -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+        env:
+          HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK_URL" ]; then
+            echo "::error::Falta el secreto RENDER_DEPLOY_HOOK_URL (GitHub → Settings → Secrets and variables → Actions). Se obtiene desde Render → Settings → Deploy Hooks."
+            exit 1
+          fi
+          curl -f -X POST "$HOOK_URL"

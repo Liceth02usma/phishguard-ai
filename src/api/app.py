@@ -102,10 +102,19 @@ def create_app() -> FastAPI:
 
     # --- Routers bajo /api ---
     app.include_router(salud.router, prefix=API_PREFIX)
+    # Alias de salud en la raíz (sin /api) para probes externos: Render,
+    # monitores y load balancers suelen golpear /health directamente.
+    app.include_router(salud.router, include_in_schema=False)
     app.include_router(integraciones.router, prefix=API_PREFIX)
     app.include_router(muestras.router, prefix=API_PREFIX)
     app.include_router(analisis.router, prefix=API_PREFIX)
     app.include_router(metricas.router, prefix=API_PREFIX)
     app.include_router(jobs.router, prefix=API_PREFIX)
+
+    # --- Raíz: evita 404 en el probe HEAD/GET / de Render ---
+    @app.get("/", include_in_schema=False)
+    async def raiz() -> dict[str, str]:
+        """Punto de entrada del servicio (sin autenticación)."""
+        return {"servicio": "phishguard-ai-api", "salud": "/api/health"}
 
     return app

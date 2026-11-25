@@ -118,35 +118,28 @@ def _consultar(
 ) -> ResultadoVT:
     """Envuelve el flujo asíncrono (D2: API síncrona).
 
-    Si ya hay un event loop corriendo (ej. uvicorn), usa nest_asyncio
-    para permitir anidar asyncio.run() dentro del loop existente.
+    Si ya hay un event loop corriendo (ej. uvicorn), ejecuta la corrutina
+    en un thread dedicado con su propio loop. No se anida asyncio.run()
+    sobre el loop activo (nest_asyncio parchea el loop del servidor y rompe
+    el seguimiento de trazas de herramientas como coverage).
     """
     try:
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
     except RuntimeError:
-        loop = None
+        # Sin loop activo: asyncio.run directo
+        return asyncio.run(
+            _consultar_async(tipo, valor, config=config, deps=deps, presupuesto=presupuesto)
+        )
 
-    if loop is not None:
-        # Estamos dentro de un event loop (ej. uvicorn)
-        # Usar nest_asyncio para permitir asyncio.run() anidado
-        try:
-            import nest_asyncio  # type: ignore[import-untyped]
-            nest_asyncio.apply()
-        except ImportError:
-            # Sin nest_asyncio, crear un nuevo thread con su propio loop
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(
-                    asyncio.run,
-                    _consultar_async(
-                        tipo, valor, config=config, deps=deps, presupuesto=presupuesto
-                    ),
-                )
-                return future.result()
+    # Hay un loop corriendo: thread dedicado con su propio loop
+    import concurrent.futures
 
-    return asyncio.run(
-        _consultar_async(tipo, valor, config=config, deps=deps, presupuesto=presupuesto)
-    )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(
+            asyncio.run,
+            _consultar_async(tipo, valor, config=config, deps=deps, presupuesto=presupuesto),
+        )
+        return future.result()
 
 
 async def _consultar_async(

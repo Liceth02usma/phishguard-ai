@@ -11,11 +11,20 @@ from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 
 
 @pytest.mark.ac("AC-API-10")
-def test_caida_modelo_revision_manual() -> None:
-    """Si el pipeline lanza excepción, la respuesta es 201 con revision_manual."""
+def test_caida_modelo_revision_manual(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Si el pipeline lanza excepción, la respuesta es 201 con revision_manual.
+
+    La caída se simula sustituyendo `analyze_email`: el endpoint lo importa
+    de forma perezosa, así que se parchea en su módulo de origen y el test
+    no toca la red (antes dependía de una llamada real a Gemini: 110 s).
+    """
     os.environ["API_KEY"] = "test-key"
-    # Sin GOOGLE_API_KEY → analyze_email fallirá
-    os.environ.pop("GOOGLE_API_KEY", "")
+
+    def _pipeline_caido(_email: object) -> object:
+        raise RuntimeError("LLM caído (simulado para el test)")
+
+    monkeypatch.setattr("src.level2_agent.agent.analyze_email", _pipeline_caido)
+
     app = create_app()
     app.state.repo = RepositorioAnalisisDoble()
     app.state.cache_vt = CacheVTDoble()
@@ -27,14 +36,8 @@ def test_caida_modelo_revision_manual() -> None:
         headers={"X-API-Key": "test-key"},
     )
     assert r.status_code == 201
-    data = r.json()
-    # Puede ser revision_manual (caída) o sin_indicadores (si no falla)
-    assert data["resultado"]["veredicto"] in (
-        "revision_manual",
-        "sin_indicadores",
-        "malicioso",
-        "sospechoso",
-    )
+    # AC-API-10: exactamente revision_manual cuando el pipeline cae
+    assert r.json()["resultado"]["veredicto"] == "revision_manual"
 
 
 @pytest.mark.ac("AC-API-10")

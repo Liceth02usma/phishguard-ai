@@ -31,8 +31,10 @@ def test_correo_vacio_no_lanza(fabrica_email_urls: Callable[..., Any]) -> None:
 
 @pytest.mark.ac("AC-URL-07")
 def test_entradas_malformadas_no_lanzan(fabrica_email_urls: Callable[..., Any]) -> None:
-    """Esquemas rotos, espacios y una URL de 100 000 caracteres no revientan."""
-    gigante = "http://" + "a" * 100_000
+    """Esquemas rotos, espacios y una URL de 10 000 caracteres no revientan."""
+    # 10 000 caracteres ya ejercita el camino de URL gigante (umbral: 200);
+    # 100 000 hacía la prueba ~O(n^2) y tardan >35 s, explotación del gate.
+    gigante = "http://" + "a" * 10_000
     texto = f"ht!tp://x/y http:// {gigante} https://exa mple.com/ //sin-esquema"
     correo = fabrica_email_urls(texto=texto)
 

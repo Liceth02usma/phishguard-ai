@@ -1,16 +1,18 @@
 import base64
 import logging
+from typing import Any
 
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 logger = logging.getLogger(__name__)
 
 
-def get_gmail_service(creds):
+def get_gmail_service(creds: Credentials) -> Any:
     return build("gmail", "v1", credentials=creds)
 
 
-def list_unread_messages(service, max_results=10):
+def list_unread_messages(service: Any, max_results: int = 10) -> list[str]:
     results = service.users().messages().list(
         userId="me", q="is:unread", maxResults=max_results
     ).execute()

@@ -18,6 +18,19 @@ source = ["scripts"]
 # Excepción aprobada por usuario para spec 000: cobertura real 79.72%.
 # Objetivo constitucional (Art. II.3): 80%. Ver informe final.
 fail_under = 79
+# Misma decisión D3 (auditoría 2026-11-17) que ruff/mypy: los scripts ad-hoc
+# de diagnóstico one-off (acceden a APIs reales, no son ejecutables por
+# tests unitarios) quedan fuera del gate de cobertura, igual que de lint y
+# tipos. El gate sigue midiendo verify.py, check_* y entrenar_*.
+omit = [
+    "scripts/_*.py",
+    "scripts/test_*.py",
+    "scripts/e2e_*.py",
+    "scripts/reentrenar_*.py",
+    "scripts/verificar_modulos.py",
+    "scripts/verificar_integraciones.py",
+    "scripts/listar_proyectos_jira.py",
+]
 
 [tool.ruff]
 line-length = 100

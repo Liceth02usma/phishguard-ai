@@ -7,6 +7,7 @@ spec 001 (Art. II.5 — sin red real).
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
@@ -397,3 +398,93 @@ def fabrica_zip() -> Callable[..., bytes]:
 def exe_mz() -> bytes:
     """Bytes de un ejecutable PE mínimo (firma MZ) para pruebas de tipo real."""
     return b"MZ" + b"\x00" * 100 + b"PE\x00\x00" + b"\x00" * 50
+
+
+# ---------------------------------------------------------------------------
+# Entorno de la suite: sin red real (Art. II.5 — determinismo, cero red)
+# ---------------------------------------------------------------------------
+
+
+class _RDAPSinRed:
+    """Cliente RDAP sin red: fecha de registro desconocida al instante.
+
+    Sustituye a ``RequestsRDAP`` como default de ``evaluar_banderas``: cada
+    dominio costaba hasta 2 intentos × 5 s de timeout contra rdap.org y
+    verisign, sin cache entre pruebas (la cache de proceso se vacía en cada
+    test por ``_reiniciar_cache_rdap``).
+    """
+
+    def registrar_evento(self, dominio: str) -> None:
+        """Nunca consulta ni lanza: ``None`` → banda conservadora (III.9)."""
+        return None
+
+
+@pytest.fixture(autouse=True)
+def _entorno_prueba_sin_red(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Aísla cada prueba de la red externa y de los secretos de ``.env``.
+
+    Dos mecanismos, ambos necesarios:
+
+    1. **Variables de entorno con valores benignos.** Se fijan en el arranque
+       de cada prueba (``load_dotenv`` no pisa variables ya presentes, así que
+       los valores reales del ``.env`` del desarrollador no llegan a los tests):
+       - ``LLM_PROVEEDOR=simulado`` → ``SimuladoAdapter``, cero llamadas a
+         Gemini/Groq (una llamada real costaba ~80 s por análisis).
+       - ``MONGODB_ATLAS_CLUSTER_URI=""`` → repos, contador LLM y retriever
+         vectorial caen a memoria (falsy = mismo camino que "ausente").
+       - ``VT_API_KEY=""`` → VirusTotal queda ``VT_NO_DISPONIBLE`` sin
+         peticiones.
+       - ``GOOGLE_API_KEY=""`` → refuerzo si algo lee la clave directamente.
+       - ``PYTHON_DOTENV_DISABLED=1`` → ``load_dotenv()`` deja de reinyectar
+         el ``.env``: sin esto, una prueba que hace ``delenv("MONGODB_...")``
+         era reabastecida con la URI real en el siguiente ``create_app()`` y
+         el cliente pymongo se conectaba a Atlas (fuga observada 2026-11-25).
+
+       El resto de claves de ``.env`` (``DOMINIOS_PROPIOS``,
+       ``ACCIONES_DRY_RUN``…) sí llegan: se cargan una sola vez al importar
+       los módulos durante la recolección, antes de que este fixture corra.
+
+       Se restauran a mano al terminar: algunas pruebas hacen ``pop`` de
+       estas claves y el ``undo`` de ``monkeypatch`` fallaría.
+
+    2. **E/S de scoring sustituida por dobles.** ``calcular_score_final`` usa
+       dependencias de producción por defecto: DNS real y ``requests.head``
+       para expandir acortadores (~12 s bloqueados por URL en un entorno sin
+       salida a la red). Se sustituyen por los dobles de ``dobles_red``
+       (Art. II.5).
+    """
+    from src.level3_logic.scoring import motor as scoring_motor
+
+    from dobles_red import deps_de_prueba
+
+    claves = {
+        "LLM_PROVEEDOR": "simulado",
+        "MONGODB_ATLAS_CLUSTER_URI": "",
+        "VT_API_KEY": "",
+        "GOOGLE_API_KEY": "",
+        "PYTHON_DOTENV_DISABLED": "1",
+    }
+    previas = {clave: os.environ.get(clave) for clave in claves}
+    os.environ.update(claves)
+
+    dependencias_scoring = scoring_motor.DependenciasScoring
+    monkeypatch.setattr(
+        "src.level2_agent.banderas.motor.RequestsRDAP", _RDAPSinRed
+    )
+    monkeypatch.setattr(
+        scoring_motor,
+        "DependenciasScoring",
+        lambda: dependencias_scoring(deps_urls=deps_de_prueba()),
+    )
+    monkeypatch.setattr(
+        "src.level2_agent.analisis_urls.motor.dependencias_por_defecto",
+        deps_de_prueba,
+    )
+    try:
+        yield
+    finally:
+        for clave, valor in previas.items():
+            if valor is None:
+                os.environ.pop(clave, None)
+            else:
+                os.environ[clave] = valor

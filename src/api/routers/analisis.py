@@ -1,4 +1,4 @@
-"""Router de análisis: POST/GET/GET{id}/PATCH/DELETE /api/analyses (spec 012).
+﻿"""Router de análisis: POST/GET/GET{id}/PATCH/DELETE /api/analyses (spec 012).
 
 FR-001: endpoints de análisis.
 AC-API-03: dry_run activo por defecto.
@@ -12,10 +12,16 @@ import json
 import os
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal, cast
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
+from src.api.analisis_conversor import (
+    analizar_adjuntos_eml,
+    headers_como_dict,
+    persistido_a_response,
+    ruta_desde_score,
+)
 from src.api.config import (
     LIMITE_PAGINACION_DEFAULT,
     LIMITE_PAGINACION_MAX,
@@ -23,8 +29,9 @@ from src.api.config import (
 )
 from src.api.csv_export import generar_csv
 from src.api.deps import APIKeyDep, CacheVTDep, RepoDep
-from src.api.eml_parser import extraer_adjuntos_eml
+from src.api.eml_parser import parsear_eml, quitar_etiquetas_html
 from src.api.errors import EntradaGrandeError, NoEncontradoError
+from src.api.routers.muestras import leer_fixture
 from src.api.schemas.analisis import (
     AdjuntoResponse,
     AnalisisMuestraRequest,
@@ -41,82 +48,6 @@ from src.level2_agent.persistencia.modelos import AnalisisPersistido
 router = APIRouter(prefix="/analyses", tags=["Analisis"])
 
 
-def _persistido_a_response(doc: dict[str, Any]) -> AnalisisResponse:
-    """Convierte un documento persistido a AnalisisResponse."""
-    from src.api.schemas.analisis import (
-        AccionResponse,
-        CorreoResponse,
-        ResultadoResponse,
-    )
-
-    correo = doc.get("correo_enmascarado", {})
-    resultado = doc.get("resultado", {})
-
-    # Mapear modo de persistencia a modo de API
-    modo_raw = doc.get("modo", "produccion")
-    modo_api = cast(
-        Literal["pegar", "eml", "muestra", "gmail"],
-        "pegar" if modo_raw in ("produccion", "dry_run") else modo_raw,
-    )
-
-    return AnalisisResponse(
-        id=str(doc.get("message_id", "")),
-        origen=doc.get("origen", "api"),
-        modo=modo_api,
-        creado_en=doc.get("fecha", datetime.now(tz=UTC)),
-        duracion_ms=doc.get("duracion_ms", 0),
-        correo=CorreoResponse(
-            remitente=correo.get("remitente", ""),
-            asunto=correo.get("asunto", ""),
-            cuerpo_enmascarado=correo.get("texto_limpio", ""),
-        ),
-        resultado=ResultadoResponse(
-            score=doc.get("score_final", 0),
-            ruta=doc.get("ruta", "heuristica"),
-            es_phishing=doc.get("veredicto") in ("malicioso", "sospechoso", "revision_manual"),
-            veredicto=doc.get("veredicto", "sin_indicadores"),
-            nivel_severidad=doc.get("nivel_severidad", "Bajo"),
-            resumen=resultado.get("resumen", ""),
-        ),
-        accion=AccionResponse(
-            ejecutada=doc.get("accion"),
-            simulada=modo_raw == "dry_run",
-        ),
-        retroalimentacion=doc.get("retroalimentacion"),
-    )
-
-
-def _analizar_adjuntos_eml(contenido: bytes) -> list[AdjuntoResponse]:
-    """Extrae adjuntos del EML y analiza con spec 005 (AC-API-02).
-
-    Devuelve lista de AdjuntoResponse con SHA-256 y reputación.
-    Errores de análisis de adjuntos se ignoran (degradación graceful).
-    """
-    from src.level2_agent.adjuntos import analizar_adjunto
-
-    resultado: list[AdjuntoResponse] = []
-    for adj in extraer_adjuntos_eml(contenido):
-        try:
-            analisis = analizar_adjunto(
-                nombre=adj.nombre,
-                tipo_declarado=adj.tipo_declarado,
-                payload=adj.payload,
-            )
-            resultado.append(
-                AdjuntoResponse(
-                    nombre=analisis.nombre,
-                    tipo_real=analisis.tipo_real,
-                    sha256=analisis.sha256,
-                    tamano=analisis.tamano_bytes,
-                    reputacion="desconocida",
-                )
-            )
-        except Exception:
-            # Degradación: adjunto no analizable → omitir
-            pass
-    return resultado
-
-
 @router.post("", status_code=201, response_model=AnalisisResponse)
 async def post_analyses(
     request: Request,
@@ -125,6 +56,11 @@ async def post_analyses(
 ) -> AnalisisResponse:
     """Analizar un correo (modos pegar, muestra y eml; AC-API-03 dry_run default)."""
     content_type = request.headers.get("content-type", "")
+
+    # Campos comunes que cada modo debe poblar (A1/A2/A3).
+    destinatario = ""
+    cuerpo_html = ""
+    headers_dict: dict[str, str] = {}
 
     if "multipart/form-data" in content_type:
         # Modo EML
@@ -138,11 +74,22 @@ async def post_analyses(
         if len(contenido) > MULTIPART_MAX_BYTES:
             raise EntradaGrandeError()
         t0 = time.monotonic()
-        asunto = f"EML: {getattr(archivo, 'filename', None) or '(sin nombre)'}"
-        remitente = "(eml)"
-        cuerpo_texto = contenido.decode("utf-8", errors="replace")[:2000]
+        # A3: parsear el EML real. Antes se metía el MIME crudo en textBody
+        # con remitente="(eml)" y sin cabeceras, así que el mismo correo
+        # daba resultados distintos en modo pegar y en modo eml.
+        eml = parsear_eml(contenido)
+        nombre_archivo = getattr(archivo, "filename", None) or "(sin nombre)"
+        if eml.asunto and eml.asunto != "(sin asunto)":
+            asunto = eml.asunto
+        else:
+            asunto = f"EML: {nombre_archivo}"
+        remitente = eml.remitente
+        destinatario = eml.destinatario
+        cuerpo_html = eml.cuerpo_html
+        cuerpo_texto = eml.cuerpo_texto or quitar_etiquetas_html(eml.cuerpo_html)
+        headers_dict = dict(eml.cabeceras)
         # AC-API-02: extraer adjuntos del EML y analizar con spec 005
-        adjuntos_resp: list[AdjuntoResponse] = _analizar_adjuntos_eml(contenido)
+        adjuntos_resp: list[AdjuntoResponse] = analizar_adjuntos_eml(contenido)
     else:
         # JSON body (pegar o muestra)
         body_raw = await request.json()
@@ -153,13 +100,28 @@ async def post_analyses(
         dry_run = body.dry_run
         t0 = time.monotonic()
         if isinstance(body, AnalisisMuestraRequest):
-            asunto = f"Muestra: {body.muestra}"
-            remitente = "muestra@test.com"
-            cuerpo_texto = ""
+            # A1: analizar el contenido REAL del fixture. Antes se analizaba
+            # un stub (asunto "Muestra: x", cuerpo vacío, de muestra@test.com)
+            # y los tres escenarios salían siempre score=31 -> sospechoso.
+            fx = leer_fixture(body.muestra)
+            if fx is None:
+                asunto = f"Muestra: {body.muestra}"
+                remitente = "(desconocido)"
+                cuerpo_texto = ""
+            else:
+                headers_dict = headers_como_dict(fx.get("headers"))
+                asunto = str(fx.get("subject") or f"Muestra: {body.muestra}")
+                remitente = headers_dict.get("from") or "(desconocido)"
+                destinatario = str(fx.get("recipient") or "")
+                cuerpo_texto = str(fx.get("textBody") or "")
+                cuerpo_html = str(fx.get("htmlBody") or "")
         else:
             asunto = body.subject or "(sin asunto)"
             remitente = body.from_ or "(desconocido)"
+            destinatario = body.to or ""
             cuerpo_texto = body.text or ""
+            cuerpo_html = body.html or ""
+            headers_dict = headers_como_dict(body.headers)
         adjuntos_resp = []
 
     # Ejecutar pipeline completo (specs 003-009)
@@ -169,23 +131,24 @@ async def post_analyses(
     email_data = None
     try:
         from src.level2_agent.agent import analyze_email
-        from src.level2_agent.models import EmailData
+        from src.level2_agent.models import Cabecera, EmailData
 
         # Construir headers como JSON string y cabeceras para el pipeline
-        if "multipart/form-data" in content_type or isinstance(body, AnalisisMuestraRequest):
-            headers_json = ""
-            cabeceras_list = []
-        else:
-            headers_json = json.dumps(body.headers) if body.headers else ""
-            from src.level2_agent.models import Cabecera
-            cabeceras_list = [
-                Cabecera(nombre=k, valor=v) for k, v in (body.headers or {}).items()
-            ]
+        headers_json = (
+            json.dumps(headers_dict, ensure_ascii=False) if headers_dict else ""
+        )
+        cabeceras_list = [
+            Cabecera(nombre=k, valor=v) for k, v in headers_dict.items()
+        ]
 
         email_data = EmailData(
             subject=asunto,
-            recipient=remitente,
+            # A2: el destinatario es `to`, no el remitente. Con
+            # recipient=from se perdía el gen dominio_externo (el de mayor
+            # peso, +2.26) y un phishing real caía de 100 a 71.
+            recipient=destinatario or remitente,
             textBody=cuerpo_texto,
+            htmlBody=cuerpo_html,
             headers=headers_json,
             cabeceras=cabeceras_list,
         )
@@ -238,7 +201,7 @@ async def post_analyses(
         duracion_ms=duracion_ms,
         correo_enmascarado={"remitente": remitente, "asunto": asunto},
         score_final=score,
-        ruta="ia",
+        ruta=ruta_desde_score(score),  # A4: derivada del score, no "ia" fijo
         veredicto=veredicto,  # type: ignore[arg-type]
         nivel_severidad=severidad,  # type: ignore[arg-type]
         version_pesos="v1",
@@ -247,7 +210,7 @@ async def post_analyses(
     )
     guardar_analisis(analisis_p, repo=repo)
 
-    resp = _persistido_a_response(analisis_p.model_dump(mode="json"))
+    resp = persistido_a_response(analisis_p.model_dump(mode="json"))
     # Inyectar resumen y adjuntos en la respuesta
     resp.resultado.resumen = resumen
     resp.resultado.adjuntos = adjuntos_resp
@@ -383,7 +346,7 @@ async def list_analyses(
     end = start + limite
     page_docs = docs[start:end]
 
-    items = [_persistido_a_response(d) for d in page_docs]
+    items = [persistido_a_response(d) for d in page_docs]
     return AnalisisPaginadoResponse(
         items=items, pagina=pagina, limite=limite, total=total
     )
@@ -396,7 +359,7 @@ async def export_csv(
 ) -> StreamingResponse:
     """Exportación CSV (FR-004, AC-API-08)."""
     docs = repo.listar({})
-    items = [_persistido_a_response(d) for d in docs]
+    items = [persistido_a_response(d) for d in docs]
     csv_content = generar_csv(items)
 
     return StreamingResponse(
@@ -416,7 +379,7 @@ async def get_analyses_by_id(
     doc = repo.buscar(id)
     if doc is None:
         raise NoEncontradoError()
-    return _persistido_a_response(doc)
+    return persistido_a_response(doc)
 
 
 @router.patch("/{id}/feedback", response_model=AnalisisResponse)
@@ -434,7 +397,7 @@ async def patch_feedback(
     doc["retroalimentacion"] = body.feedback
     repo.borrar(id)
     repo.guardar(doc)
-    return _persistido_a_response(doc)
+    return persistido_a_response(doc)
 
 
 @router.delete("/{id}", status_code=204)

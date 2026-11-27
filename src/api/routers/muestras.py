@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter
 from src.api.deps import APIKeyDep
@@ -15,6 +16,28 @@ from src.api.schemas.analisis import MuestraResponse
 router = APIRouter(prefix="/samples", tags=["Muestras"])
 
 _FIXTURES_DIR = Path(__file__).resolve().parent.parent.parent.parent / "tests" / "fixtures"
+
+
+def leer_fixture(muestra_id: str) -> dict[str, Any] | None:
+    """Lee ``tests/fixtures/{muestra_id}.json`` y devuelve su contenido.
+
+    Se usa en ``POST /api/analyses`` modo ``muestra``: sin esto el endpoint
+    analizaba un stub vacío (asunto ``Muestra: x``, cuerpo vacío) y los tres
+    escenarios salían siempre ``score=31 -> sospechoso``.
+
+    Devuelve ``None`` si el id contiene separadores de ruta, no existe o el
+    JSON no es un objeto (nunca lanza: la API degrada a ``None``).
+    """
+    if not muestra_id or any(c in muestra_id for c in ("/", "\\", "..", "\x00")):
+        return None
+    ruta = _FIXTURES_DIR / f"{muestra_id}.json"
+    try:
+        if not ruta.is_file():
+            return None
+        datos = json.loads(ruta.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return datos if isinstance(datos, dict) else None
 
 
 @router.get("", response_model=list[MuestraResponse])

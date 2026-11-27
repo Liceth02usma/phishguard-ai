@@ -25,7 +25,11 @@ from src.api.app import create_app
 from src.api.persistence_repos import CacheVTDoble, RepositorioAnalisisDoble
 
 VEREDICTOS_VALIDOS = {"malicioso", "sospechoso", "revision_manual", "sin_indicadores"}
-SEVERIDADES_VALIDAS = {"Bajo", "Medio", "Alto", "Crítico"}
+# Literal canónico de `Severidad` (src/api/schemas/comunes.py) y de
+# `NivelSeveridad` (spec 008): "Critico" sin tilde. Antes se esperaba
+# "Crítico" y el test solo pasaba mientras ningún correo llegaba a esa
+# severidad.
+SEVERIDADES_VALIDAS = {"Bajo", "Medio", "Alto", "Critico"}
 
 
 # --- Helpers ---
@@ -328,7 +332,7 @@ class TestE2EApiScore:
         try:
             resp = _post_analisis(client, _correo_malicioso())
             sev = resp.json()["resultado"]["nivel_severidad"]
-            assert sev in ("Medio", "Alto", "Crítico")
+            assert sev in ("Medio", "Alto", "Critico")
         finally:
             _limpiar_env()
 

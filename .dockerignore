@@ -7,7 +7,8 @@ token.json
 credenciales.json
 notebooks/
 .github/
-tests/
+tests/*
+!tests/fixtures/
 docs/
 scripts/
 *.egg-info/

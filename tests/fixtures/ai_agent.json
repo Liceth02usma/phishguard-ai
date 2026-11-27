@@ -1,10 +1,9 @@
 {
   "_test": {
     "name": "ai_agent",
-    "description": "Professional internal email, same domain, no suspicious features. Score = 50 (zero genes) -> AI Agent route (30-75).",
-    "expected_route": "ai_agent_safe",
-    "expected_score_min": 30,
-    "expected_score_max": 75
+    "description": "Professional internal email, same domain, no suspicious features. Zero risk genes -> benign route (score < 30) per AC-SCO-01: the trained logistic classifier must score an email with no indicators below 30, so the old 'score = 50 with zero genes' expectation (pre-logistic) no longer applies. The 30-75 grey zone is covered by ambiguous emails (tests/unit/test_ac_mem_02_independencia.py).",
+    "expected_route": "benign",
+    "expected_score_max": 30
   },
   "subject": "Meeting reminder for tomorrow",
   "recipient": "user@ucaldas.edu.co",

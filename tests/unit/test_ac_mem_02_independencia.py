@@ -7,11 +7,13 @@ Los correos son SINTÉTICOS y deterministas (Art. 0 — son datos de prueba, no
 instrucciones). Las puntuaciones se miden con el algoritmo genético real y se
 verifican por banda antes de comparar órdenes:
 
-- benignos A y B: suma de pesos negativa (``apelacion_miedo`` ± ``telefono``
-  / ``envio_madrugada``) → score < 30
-- medios C y D: ``cuerpo_corto`` (0.935) y ``dominio_externo`` (0.355) →
+- benignos A y B: sin genes de riesgo con peso positivo (los genes
+  clásicos de cebo están neutralizados por la restricción de monotonía
+  B2, w ≥ 0) → score < 30
+- medios C y D: ``dominio_externo`` (+ ``cuerpo_corto`` en C) →
   30 ≤ score ≤ 75 (ruta del agente, donde existía la memoria)
-- malicioso E: ``cuerpo_corto`` + ``accion_legal`` (1.87) → score > 75
+- malicioso E: ``dominio_externo`` + ``cuerpo_corto`` +
+  ``mismatch_dominio_url`` + ``protocolo_http_inseguro`` → score > 75
 
 Ver research.md D7 (mecanismo de rojo) y D11 (medición empírica de bandas).
 """
@@ -82,19 +84,25 @@ FIXTURES = [
         ),
         "esperada": "benigna",
     },
-    # C — medio: cuerpo < 50 palabras (cuerpo_corto 0.935) → suma 0.935
+    # C — medio: remitente EXTERNO (dominio_externo) + enlace https del mismo
+    # proveedor (sin mismatch ni protocolo inseguro). Con el clasificador
+    # recalibrado (monotonía B2) un correo corto interno sin señales de riesgo
+    # ya cae por debajo de 30; para cubrir la zona gris hace falta una señal
+    # real, no solo "cuerpo_corto".
     {
         "id": "correo_c",
         "subject": "Resumen de la reunión semanal",
         "recipient": "lider@empresa.com",
         "textBody": (
             "Hola: te comparto el resumen de la reunión de hoy y los pendientes de "
-            "la semana entrante. Revisa el documento y me comentas cualquier "
+            "la semana entrante en "
+            "https://docs.proveedor-externo.com/resumen-042. "
+            "Revisa el documento y me comentas cualquier "
             "sugerencia de mejora."
         ),
         "htmlBody": "",
         "headers": (
-            '{"From": "lider@empresa.com", '
+            '{"From": "analista@proveedor-externo.com", '
             '"Date": "Tue, 15 Oct 2024 10:00:00 +0000"}'
         ),
         "esperada": "media",
@@ -124,15 +132,18 @@ FIXTURES = [
         ),
         "esperada": "media",
     },
-    # E — malicioso: cuerpo < 50 palabras + "demanda" (accion_legal) → suma 1.87
+    # E — malicioso: cuerpo < 50 palabras + "demanda" (accion_legal) +
+    # enlace http hostil con dominio distinto del remitente
+    # (mismatch_dominio_url + protocolo_http_inseguro).
     {
         "id": "correo_e",
         "subject": "Citación del juzgado",
         "recipient": "usuario@empresa.com",
         "textBody": (
             "Citación judicial: ha sido seleccionado para comparecer ante el "
-            "juzgado. Debe atender de inmediato o se presentará una demanda formal "
-            "en su contra."
+            "juzgado. Debe atender de inmediato o se presentará una demanda "
+            "formal en su contra. Confirme su identidad en "
+            "http://citacion-juzgado.top/verificar"
         ),
         "htmlBody": "",
         "headers": (
